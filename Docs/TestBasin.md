@@ -29,8 +29,8 @@ According to the project presentation (`educational_ressources/2026/261020_IS_pr
 ### 3.1 Files
 
 ```text
-Assets/
-├── Scripts/TestBasin/
+Assets/TestBasin/
+├── Scripts/
 │   ├── TestBasin.cs            procedural basin + water generation
 │   ├── SimpleBuoyancy.cs       Archimedes buoyancy + water drag
 │   ├── GroundTruthLogger.cs    robot ground-truth pose to CSV
@@ -163,7 +163,7 @@ A video of the simulation is available in `media/basin_simulation.mp4`.
 ## 5. How to open and test
 
 1. Open the project in Unity Hub with **Unity 6000.6.5f1** (*Add project from disk*). The first opening takes a few minutes while Unity rebuilds the `Library` folder.
-2. In the Project window, open `Assets/Scenes/Basin_Grid` (with grid) or `Basin_NoGrid` (without grid).
+2. In the Project window, open `Assets/TestBasin/Scenes/Basin_Grid` (with grid) or `Basin_NoGrid` (without grid).
 3. Press **▶ Play**. The orange robot rises and floats almost fully submerged.
 4. To move the camera, hold the **right mouse button** and use **WASD**, **Q/E** (down/up) and **Shift** (faster). Below 5.5 m inside the basin, the underwater fog turns on.
 5. To test buoyancy and drag:

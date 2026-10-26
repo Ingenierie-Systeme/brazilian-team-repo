@@ -68,8 +68,8 @@ Thumbs.db
 .vs/
 
 # Local editor tooling
-/[Aa]ssets/Scripts/TestBasin/Editor/
-/[Aa]ssets/Scripts/TestBasin/Editor.meta
+/[Aa]ssets/TestBasin/Scripts/Editor/
+/[Aa]ssets/TestBasin/Scripts/Editor.meta
 
 # Runtime output
 /GroundTruthLogs/
