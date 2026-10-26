@@ -32,12 +32,12 @@ According to the project presentation (`educational_ressources/2026/261020_IS_pr
 Assets/TestBasin/
 ├── Scripts/
 │   ├── TestBasin.cs            procedural basin + water generation
-│   ├── SimpleBuoyancy.cs       Archimedes buoyancy + water drag
+│   ├── SimpleBuoyancy.cs       Archimedes buoyancy + water drag (generic, for passive bodies)
 │   ├── GroundTruthLogger.cs    robot ground-truth pose to CSV
 │   ├── UnderwaterEffect.cs     bluish fog when the camera is under water
-│   └── FreeFlyCamera.cs        free camera to inspect the scene in Play mode
+│   └── SimulationCamera.cs     follows the AUV; C toggles a free camera
 ├── Shaders/BasinGrid.shader    procedural metric grid (URP)
-├── Materials/                  Basin_Grid, Basin_Plain, Water_Surface, Water_Volume, Robot_Placeholder
+├── Materials/                  Basin_Grid, Basin_Plain, Water_Surface, Water_Volume
 ├── Prefabs/TestBasin.prefab    basin + water (shared by both scenes)
 └── Scenes/                     Basin_Grid.unity, Basin_NoGrid.unity
 ```
@@ -72,7 +72,7 @@ Legend: L = `length` = 20 (Z), W = `width` = 12 (X), D = `depth` = 6 (Y) and t =
 - the **`WaterVolume`** child has a `BoxCollider` with `isTrigger = true`, sized `width × waterLevel × length` (12 × 5.5 × 20 m), from the floor up to the surface;
 - it is on the **Ignore Raycast** layer, so it does not block the rays of future sensors (LiDAR, camera).
 
-**Buoyancy and drag (`SimpleBuoyancy.cs`, on the robot, requires a Rigidbody):**
+**Generic buoyancy and drag (`SimpleBuoyancy.cs`, requires a Rigidbody).** The AUV uses its own buoyancy model (`SubmarinePhysics`, see 3.7); `SimpleBuoyancy` is available for passive bodies (buoys, boxes, props):
 - entering and leaving the water are detected with trigger events (`OnTriggerEnter/Exit`), compared against the basin's `WaterCollider`;
 - buoyancy = **ρ · V · g · submerged fraction**, with ρ = 1000 kg/m³;
 - the submerged fraction is `(surface − bottom of the body) / body height`, computed from the collider `bounds`;
@@ -109,8 +109,8 @@ HLSL shader for URP, with main light, received and cast shadows, fog, and `Shado
 
 Each scene contains:
 - a **directional light** with soft shadows, the default sky and three-color ambient light (no lightmap baking needed);
-- a **camera** at (0, 17, −24) looking at the center, with `UnderwaterEffect` and `FreeFlyCamera`;
-- a **micro-AUV placeholder:** a capsule lying along Z, **1 m × Ø 0.2 m**, with a **28 kg** `Rigidbody`, `SimpleBuoyancy` (V = 0.0293 m³, neutral mass = 29.3 kg, so slightly positive) and `GroundTruthLogger`, starting at (0, 3, −6).
+- a **camera** with `SimulationCamera` (follows the AUV) and `UnderwaterEffect`;
+- the **AUV** (`Submarine` prefab, see 3.7) at (0, 3, −6), heading +Z, with `GroundTruthLogger`.
 
 Both scenes are in the **Build Settings**, and any change to the prefab applies to both.
 
@@ -126,6 +126,23 @@ Both scenes are in the **Build Settings**, and any change to the prefab applies 
 - **File:** the folder is configurable (`outputFolder`; empty = `<project>/GroundTruthLogs` in the editor). The file name contains **the scene name** and the date/time, for example `groundtruth_Basin_Grid_20261023_111226.csv`.
 - **Control:** context-menu items **Start logging / Stop logging** on the component.
 
+### 3.7 AUV integration
+
+The AUV comes from `Assets/AUV/` (`SubmarinePhysics.cs`): vertex-based buoyancy with ballast, mass shifting for pitch, fin thrust and rudder torque. In the basin scenes it is used through the **`Submarine` prefab** (`Assets/AUV/Prefabs/Submarine.prefab`), so both scenes share the same robot.
+
+- **`SubmarineWaterLevelSync`** (`Assets/AUV/Scripts/`) copies the basin water surface height (`TestBasin.WaterSurfaceY`, 5.5 m) into `SubmarinePhysics.waterLevel` every physics step, so the water height is defined only in the basin and `SubmarinePhysics` is used unchanged.
+- **`GroundTruthLogger`** records the AUV pose and travelled distance.
+- **`SimulationCamera`** follows the AUV from behind (`targetLocalForward = (−1, 0, 0)`, the AUV moves along its local −X axis). **C** switches to a free camera that only moves while the right mouse button is held, so the keyboard keeps driving the AUV.
+
+AUV controls (from `SubmarinePhysics`):
+
+| Key | Action |
+| --- | --- |
+| Space | fin thrust |
+| A / D | rudder (turn left / right) |
+| W / S | shift the mass forward / backward (pitch) |
+| Q or Shift / E or Ctrl | ballast: less / more buoyant |
+
 ## 4. Verification
 
 Both scenes were checked by measuring the generated pieces and by running **15 s in Play mode**:
@@ -140,11 +157,12 @@ Both scenes were checked by measuring the generated pieces and by running **15 s
 | Basin material | Basin_Grid | Basin_Plain |
 | BasinGrid shader | compiles without errors | — |
 
-Play-mode test (Basin_Grid, 15 s):
-- the robot started at y = 3.0 m, **rose and floats at y = 5.41 m**, with a residual velocity of 0.003 m/s;
-- submerged fraction = **0.948** (expected ≈ 28 / 29.3 = 0.955); buoyancy = 272.6 N for a weight of 274.7 N, still converging;
-- water damping: linear 2.0 and angular 1.0, as configured;
-- CSV: 295 samples in 14.7 s.
+Play-mode test with the AUV (Basin_Grid, 15 s; keys sent through a virtual keyboard):
+- `SubmarinePhysics.waterLevel` = 5.500, synced from the basin;
+- 0–5 s, no input: the AUV stays at y = 3.0 m (neutral buoyancy);
+- 5–10 s, Space held: the AUV moves 14.5 m along +Z, pitching nose-down, until it reaches the front wall (z = 8.5 = wall at 10 − half the AUV length);
+- the camera follows the AUV at about 6 m;
+- CSV: 336 samples, travelled XZ distance 14.56 m.
 
 All scripts compile **without errors or warnings** in Unity 6.
 
@@ -164,20 +182,18 @@ A video of the simulation is available in `media/basin_simulation.mp4`.
 
 1. Open the project in Unity Hub with **Unity 6000.6.5f1** (*Add project from disk*). The first opening takes a few minutes while Unity rebuilds the `Library` folder.
 2. In the Project window, open `Assets/TestBasin/Scenes/Basin_Grid` (with grid) or `Basin_NoGrid` (without grid).
-3. Press **▶ Play**. The orange robot rises and floats almost fully submerged.
-4. To move the camera, hold the **right mouse button** and use **WASD**, **Q/E** (down/up) and **Shift** (faster). Below 5.5 m inside the basin, the underwater fog turns on.
-5. To test buoyancy and drag:
-   - select `Robot_Placeholder` and look at the **Debug** section of `SimpleBuoyancy` (`inWater`, `submergedFraction`, `buoyancyForce`);
-   - change the Rigidbody `Mass`: below 29.3 kg the robot floats, above it sinks.
+3. Press **▶ Play** and drive the AUV with the keys of section 3.7. The camera follows it; below 5.5 m inside the basin, the underwater fog turns on.
+4. Press **C** for the free camera: hold the **right mouse button** and use **WASD**, **Q/E** (down/up) and **Shift** (faster). Press **C** again to follow the AUV.
+5. To test buoyancy: change the AUV ballast with **Q/E** and watch it rise or sink; `SubmarinePhysics` parameters are on the `Submarine` prefab.
 6. When leaving Play mode, the Console prints the path of the CSV file, saved in `GroundTruthLogs/`.
 7. To change the basin, edit the `TestBasin` parameters on the prefab; the pieces regenerate automatically.
 
 ### Checking that each square is 1 m (grid scene)
 
-- **With the Transform:** select the robot and type integer positions in the Inspector, for example X = 0 → 1 → 2. Each unit moves it exactly one square, and the thick lines are at multiples of 5. When dragging with **Ctrl** in the Scene view, the default snap is 0.25 m (4 steps = 1 square); it can be set to 1 m in **Edit → Grid and Snap Settings**.
+- **With the Transform:** select the AUV and type integer positions in the Inspector, for example X = 0 → 1 → 2. Each unit moves it exactly one square, and the thick lines are at multiples of 5. When dragging with **Ctrl** in the Scene view, the default snap is 0.25 m (4 steps = 1 square); it can be set to 1 m in **Edit → Grid and Snap Settings**.
 - **With a reference cube:** create **GameObject → 3D Object → Cube** (1 × 1 × 1 m) at (0.5, 0.5, 0.5). It covers exactly one floor square, with its corners on the lines.
 - **By counting:** the basin is 12 squares wide (1 + 5 + 5 + 1 between the thick lines at x = −5, 0, 5) and 20 squares long (4 blocks of 5). The walls are 6 squares high, and the water reaches 5.5.
-- **With the ground truth:** move the robot in a straight line over N squares and compare with `distance_xz_m` in the CSV.
+- **With the ground truth:** drive the AUV in a straight line over N squares and compare with `distance_xz_m` in the CSV.
 - **With the orthographic view:** in `Basin_Grid_top.png`, each square is about 32.7 px (720 px for 22 m).
 
 ## 6. Limitations and next steps
@@ -185,5 +201,6 @@ A video of the simulation is available in `media/basin_simulation.mp4`.
 - **Submerged fraction:** estimated with the world-axis-aligned bounding box, which is an approximation for a tilted body. Next step: sample points inside the hull volume, as in exercise 4 of the course handout ("Floating Cube").
 - **AUV physics (slide 14):** the **fin lift and thrust** and the **sliding mass** remain to be added.
 - **Sensors (slide 15):** RGB camera, INS, pressure and GNSS. The publishers from exercises 7–9 (`CameraPublisher`, `ImuPublisher`, `GnssPublisher`) can be reused, and the pressure sensor added as p = p_atm + ρ·g·(surface − y).
-- **Real robot:** replace the placeholder with the CAD model (`Assembly.obj`), keeping a simple collider on top.
+- **AUV model:** replace the cylinder with the CAD model (`Assembly.obj`), keeping a simple collider on top.
+- **AUV tuning:** the thrust is applied on the AUV axis while the center of mass is 5 cm below it, so thrust pitches the nose down; thrust (30 N for 2.5 kg) is also strong for the basin size.
 - **Water:** the surface is flat and static, which fits an indoor pool.

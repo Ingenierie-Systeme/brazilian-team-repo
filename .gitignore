@@ -73,3 +73,6 @@ Thumbs.db
 
 # Runtime output
 /GroundTruthLogs/
+
+# Unity / Mono crash dumps
+mono_crash.*
