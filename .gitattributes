@@ -1,0 +1,28 @@
+# Unity YAML assets: text with LF line endings
+*.unity      text eol=lf
+*.prefab     text eol=lf
+*.asset      text eol=lf
+*.mat        text eol=lf
+*.meta       text eol=lf
+*.controller text eol=lf
+*.anim       text eol=lf
+*.inputactions text eol=lf
+
+# Code
+*.cs         text eol=lf diff=csharp
+*.shader     text eol=lf
+*.hlsl       text eol=lf
+*.json       text eol=lf
+*.md         text eol=lf
+
+# Binary files
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.mp4  binary
+*.fbx  binary
+*.obj  binary
+*.blend binary
+*.wav  binary
+*.mp3  binary

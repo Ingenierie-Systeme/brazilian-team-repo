@@ -1,0 +1,52 @@
+# Unity generated folders (rebuilt when the project is opened)
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Mm]emoryCaptures/
+/[Rr]ecordings/
+
+# IDE and generated project files
+.vs/
+.vscode/
+.idea/
+.gradle/
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.tmp
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+*.pidb.meta
+*.pdb.meta
+*.mdb.meta
+sysinfo.txt
+crashlytics-build.properties
+
+# Builds and packages
+*.apk
+*.aab
+*.unitypackage
+*.app
+
+# Local editor tooling
+/[Aa]ssets/Scripts/TestBasin/Editor/
+/[Aa]ssets/Scripts/TestBasin/Editor.meta
+
+# Runtime output
+/GroundTruthLogs/
+
+# OS files
+.DS_Store
+Thumbs.db
