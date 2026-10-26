@@ -63,3 +63,13 @@ Thumbs.db
 *.sublime-project
 *.sublime-workspace
 
+
+# Visual Studio
+.vs/
+
+# Local editor tooling
+/[Aa]ssets/Scripts/TestBasin/Editor/
+/[Aa]ssets/Scripts/TestBasin/Editor.meta
+
+# Runtime output
+/GroundTruthLogs/
