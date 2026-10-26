@@ -6,13 +6,13 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/Scenes/SampleScene.unity
-    guid: 99c9720ab356a0642a771bea13969a05
-  - enabled: 1
-    path: Assets/Scenes/Basin_Grid.unity
+    path: Assets/TestBasin/Scenes/Basin_Grid.unity
     guid: e29901151049d6b9f9595fd2cd94c19f
   - enabled: 1
-    path: Assets/Scenes/Basin_NoGrid.unity
+    path: Assets/TestBasin/Scenes/Basin_NoGrid.unity
     guid: cc64c055967113c1293c4bfec13e39af
+  - enabled: 1
+    path: Assets/AUV/Scenes/Sumarine_model.unity
+    guid: bce1aa141efb34aa381c1d16511a5bbb
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
