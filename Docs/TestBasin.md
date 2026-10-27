@@ -130,7 +130,9 @@ Both scenes are in the **Build Settings**, and any change to the prefab applies 
 
 The AUV comes from `Assets/AUV/` (`SubmarinePhysics.cs`): vertex-based buoyancy with ballast, mass shifting for pitch, fin thrust and rudder torque. In the basin scenes it is used through the **`Submarine` prefab** (`Assets/AUV/Prefabs/Submarine.prefab`), so both scenes share the same robot.
 
-- **`SubmarineWaterLevelSync`** (`Assets/AUV/Scripts/`) copies the basin water surface height (`TestBasin.WaterSurfaceY`, 5.5 m) into `SubmarinePhysics.waterLevel` every physics step, so the water height is defined only in the basin and `SubmarinePhysics` is used unchanged.
+- **`SubmarineWaterLevelSync`** (`Assets/AUV/Scripts/`) copies the basin water surface height (`TestBasin.WaterSurfaceY`, 5.5 m) into `SubmarinePhysics.waterLevel` every physics step, so the water height is defined only in the basin.
+- **Size and mass** of the prefab follow the real AUV (0.61 m × Ø 0.10 m, 5 kg estimate), with thrust and rudder tuned for that size; see [AUV_Sensors.md](AUV_Sensors.md#4-auv-parameters-used-in-the-basin).
+- **Sensors** (RGB camera, INS with magnetometer, pressure, GNSS) are mounted on the prefab and publish to ROS 2; see [AUV_Sensors.md](AUV_Sensors.md).
 - **`GroundTruthLogger`** records the AUV pose and travelled distance.
 - **`SimulationCamera`** follows the AUV from behind (`targetLocalForward = (−1, 0, 0)`, the AUV moves along its local −X axis). **C** switches to a free camera that only moves while the right mouse button is held, so the keyboard keeps driving the AUV.
 
@@ -157,12 +159,13 @@ Both scenes were checked by measuring the generated pieces and by running **15 s
 | Basin material | Basin_Grid | Basin_Plain |
 | BasinGrid shader | compiles without errors | — |
 
-Play-mode test with the AUV (Basin_Grid, 15 s; keys sent through a virtual keyboard):
+Play-mode test with the AUV and its sensors (Basin_Grid, ROS-TCP-Endpoint running; the test drives the AUV directly):
 - `SubmarinePhysics.waterLevel` = 5.500, synced from the basin;
-- 0–5 s, no input: the AUV stays at y = 3.0 m (neutral buoyancy);
-- 5–10 s, Space held: the AUV moves 14.5 m along +Z, pitching nose-down, until it reaches the front wall (z = 8.5 = wall at 10 − half the AUV length);
-- the camera follows the AUV at about 6 m;
-- CSV: 336 samples, travelled XZ distance 14.56 m.
+- 0–5 s at rest: the AUV stays at y = 3.0 m (neutral buoyancy);
+- 5–10 s at cruise speed (0.4 m/s): 1.9 m along +Z; 10–12 s: right turn;
+- 12–25 s with minimum ballast: the AUV rises by itself and floats at the surface (y = 5.41 m);
+- all sensor topics received on the ROS side (details in [AUV_Sensors.md](AUV_Sensors.md#6-verification));
+- CSV: 538 samples, travelled XZ distance 2.81 m.
 
 All scripts compile **without errors or warnings** in Unity 6.
 
@@ -199,8 +202,8 @@ A video of the simulation is available in `media/basin_simulation.mp4`.
 ## 6. Limitations and next steps
 
 - **Submerged fraction:** estimated with the world-axis-aligned bounding box, which is an approximation for a tilted body. Next step: sample points inside the hull volume, as in exercise 4 of the course handout ("Floating Cube").
-- **AUV physics (slide 14):** the **fin lift and thrust** and the **sliding mass** remain to be added.
+- **AUV physics (slide 14):** fin **lift** is not modeled yet (the rudder is a pure torque) and the drag is a simple damping.
 - **Sensors (slide 15):** RGB camera, INS, pressure and GNSS. The publishers from exercises 7–9 (`CameraPublisher`, `ImuPublisher`, `GnssPublisher`) can be reused, and the pressure sensor added as p = p_atm + ρ·g·(surface − y).
 - **AUV model:** replace the cylinder with the CAD model (`Assembly.obj`), keeping a simple collider on top.
-- **AUV tuning:** the thrust is applied on the AUV axis while the center of mass is 5 cm below it, so thrust pitches the nose down; thrust (30 N for 2.5 kg) is also strong for the basin size.
+- **AUV tuning:** the thrust is applied on the AUV axis, 5 cm above the center of mass, so full thrust pitches the nose down by about 6° (sin θ = T / (m·g)); the mass (5 kg) is an estimate to be replaced by the measured value.
 - **Water:** the surface is flat and static, which fits an indoor pool.

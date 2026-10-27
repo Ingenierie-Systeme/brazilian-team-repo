@@ -1,0 +1,118 @@
+# AUV sensors
+
+Simulated sensors of the micro-AUV (project slides 15 and 17), published to ROS 2 through the ROS-TCP-Connector.
+
+![Robot camera](images/robot_camera.png)
+
+*Image published on `/camera/compressed_image`, decoded on the ROS side.*
+
+## 1. Overview
+
+All sensors are children of the `Submarine` prefab (`Assets/AUV/Prefabs/Submarine.prefab`), under `Sensors/`. Their scripts are in `Assets/AUV/Scripts/Sensors/`.
+
+| Sensor | Object (mount) | Script | Topic | Message | Rate |
+| --- | --- | --- | --- | --- | --- |
+| RGB camera | `RGBCamera` (front dome) | `CameraPublisher` | `/camera/compressed_image` | `sensor_msgs/CompressedImage` (JPEG, 640×480) | 10 Hz |
+| INS: gyroscope + accelerometer | `IMU` (center) | `ImuPublisher` | `/imu/data` | `sensor_msgs/Imu` | 50 Hz |
+| INS: ground-truth velocity | `IMU` | `ImuPublisher` | `/ins/velocity` | `geometry_msgs/TwistStamped` | 50 Hz |
+| INS: magnetometer | `IMU` | `MagnetometerPublisher` | `/imu/mag` | `sensor_msgs/MagneticField` | 20 Hz |
+| Pressure (Bar30-like) | `PressureSensor` (rear cap) | `PressureSensor` | `/pressure`, `/depth` | `sensor_msgs/FluidPressure`, `std_msgs/Float64` | 20 Hz |
+| GNSS | `GNSSAntenna` (top of the tube) | `GnssPublisher` | `/gnss/fix` (+ `/gnss/local`, `/gnss/ground_truth`) | `sensor_msgs/NavSatFix` | 5 Hz |
+
+Topic names, rates and noise levels are fields of each component in the Inspector.
+
+## 2. Frames
+
+- **Sensor frame:** every sensor object is rotated so that its +Z axis points to the AUV forward direction (the AUV moves along its local −X axis). Measurements are converted to the ROS convention REP 103 "FLU" (x forward, y left, z up): `(x, y, z)_ROS = (Z, −X, Y)_Unity`. Angular velocities and quaternions also get the sign change of the left/right-handed flip (`SensorUtils`).
+- **World frame:** Unity +Z = north, +X = east, +Y = up (used by the magnetometer and the GNSS).
+
+## 3. Sensors
+
+### RGB camera — `CameraPublisher`
+- Unity camera rendering into a texture; the image is copied back from the GPU asynchronously (no frame stall) and encoded as JPEG (quality 75).
+- Raw `sensor_msgs/Image` (`rgb8`) can also be enabled (`publishRaw`, topic `/camera/image`). Raw images at 640×480 and 10 Hz use about 9 MB/s.
+- A picture-in-picture preview is drawn in the bottom-right corner of the Game view (`showPreview`).
+- Field of view 70°, near plane 2 cm.
+
+### Inertial sensor — `ImuPublisher`
+- Gyroscope: angular velocity of the Rigidbody in the sensor frame.
+- Accelerometer: specific force `f = dv/dt − g` of the sensor point, so it reads about +9.81 m/s² on z at rest.
+- Orientation: sensor orientation in the world frame above.
+- Gaussian noise (gyro 0.01 rad/s, accel 0.05 m/s²) and constant biases (zero by default); the covariances in the message match the noise.
+- `/ins/velocity`: noise-free body velocity, useful to evaluate navigation.
+
+### Magnetometer — `MagnetometerPublisher`
+- Constant Earth field defined by intensity (47 µT), inclination (64°) and declination (1.5° E), typical values for the Paris area.
+- The field is expressed in the sensor frame, with an optional hard-iron bias and 0.3 µT noise.
+- The Inspector shows the heading computed from the reading (0° = magnetic north, clockwise) for a level sensor.
+
+### Pressure sensor — `PressureSensor`
+- `p = p_atm + ρ·g·depth`, with the depth of the sensor below the basin water surface (read from `TestBasin`), 0 out of the water.
+- Noise 20 Pa (about 2 mm of water, the Bar30 resolution) and optional bias.
+- `/depth` is computed from the noisy pressure, as a driver would do: `depth = (p − p_atm) / (ρ·g)`.
+
+### GNSS — `GnssPublisher`
+- GNSS signals do not go through water: while the antenna is submerged (more than `maxAntennaDepth` = 5 cm), the receiver publishes `STATUS_NO_FIX` with NaN coordinates.
+- At the surface: latitude/longitude/altitude around a reference point (approx. ENSTA, Palaiseau), using a local tangent-plane approximation of WGS84.
+- Error: slowly drifting Gauss-Markov process (2 m horizontal, 4 m vertical, 30 s correlation) plus a little white noise.
+- `/gnss/local` and `/gnss/ground_truth` give the measured and true positions in local ENU meters (simulation only).
+
+## 4. AUV parameters used in the basin
+
+The `Submarine` prefab is sized like the real AUV (CAD: about 0.61 m long, 0.10 m tube diameter). The visual model is still the placeholder cylinder; the CAD model will replace it.
+
+| Parameter | Value | Note |
+| --- | --- | --- |
+| Hull | 0.61 m × Ø 0.10 m | from the CAD assembly |
+| Mass | 5 kg | estimate; replace with the measured mass |
+| `thrustForce` | 5 N | cruise speed ≈ T / (m · damping) = 0.4 m/s |
+| `rudderTorque` | 0.2 N·m | turn rate ≈ 30°/s |
+| `maxPitchShift` | 0.03 m | sliding mass travel |
+| `submersionRange` | 0.1 m | about the hull diameter (new field of `SubmarinePhysics`, default 0.2 m as before) |
+
+## 5. Running with ROS 2
+
+The Unity project uses the ROS-TCP-Connector v0.7.0 with the ROS 2 message format (scripting define `ROS2`). On the ROS 2 side, the ROS-TCP-Endpoint (branch `main-ros2`) relays the messages:
+
+```bash
+# once: workspace with the endpoint
+mkdir -p ~/ros2_ws/src && cd ~/ros2_ws/src
+git clone -b main-ros2 https://github.com/Unity-Technologies/ROS-TCP-Endpoint.git
+cd ~/ros2_ws && colcon build && source install/setup.bash
+
+# every time
+ros2 run ros_tcp_endpoint default_server_endpoint --ros-args -p ROS_IP:=127.0.0.1
+```
+
+Then press Play in a basin scene and check the topics:
+
+```bash
+ros2 topic list
+ros2 topic hz /imu/data
+ros2 topic echo /depth
+ros2 topic echo /gnss/fix --field status
+```
+
+The Unity side connects to `127.0.0.1:10000` by default; another address can be set in **Robotics → ROS Settings**.
+
+To view the camera with `rqt_image_view`, the compressed transport plugin is needed (`sudo apt install ros-jazzy-image-transport-plugins`), and the topic name should follow the image_transport convention (set `compressedTopic` to `camera/image/compressed`).
+
+## 6. Verification
+
+End-to-end test (Basin_Grid scene, ROS 2 Jazzy, ROS-TCP-Endpoint 0.7.0). The AUV was driven by the test: 5 s at rest, 5 s at cruise speed, 2 s turning right, then minimum ballast so that it rises to the surface.
+
+| Topic | Received | Check |
+| --- | --- | --- |
+| `/camera/compressed_image` | 10 Hz, 640×480 JPEG (~19 kB) | decoded image shows the basin ahead of the AUV |
+| `/imu/data` | 50 Hz | at rest: acc ≈ (0, 0, +9.8) m/s²; during the right turn: gyro z ≈ −0.49 rad/s (0.5 rad/s applied) |
+| `/imu/mag` | 20 Hz | \|B\| ≈ 47 µT; heading 0° facing north, 62° after the turn |
+| `/pressure`, `/depth` | 20 Hz | 125 562 Pa / 2.47 m at y = 3.03 m (expected 2.47 m); 0.06 m at the surface |
+| `/gnss/fix` | 5 Hz | `NO_FIX` while submerged; `FIX` once the antenna reached the surface, within a few meters of the reference |
+| `/ins/velocity` | 50 Hz | — |
+
+## 7. Limitations
+
+- Sensor timestamps use the wall clock (UTC), not a simulation clock.
+- The camera does not model lens distortion, motion blur or water turbidity beyond the scene fog.
+- The magnetic field is uniform (no disturbance from the basin structure).
+- The IMU orientation is perfect (no drift); a real INS estimates it from the sensors.
