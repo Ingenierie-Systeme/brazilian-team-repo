@@ -9,6 +9,8 @@ public class SubmarinePhysics : MonoBehaviour
 
     [Header("Environment")]
     public float waterLevel = 0f;
+    [Tooltip("Depth over which a hull vertex goes from no buoyancy to full buoyancy (about the hull diameter).")]
+    public float submersionRange = 0.2f;
 
     [Header("Propulsion & Steering")]
     public float thrustForce = 30f;
@@ -31,7 +33,6 @@ public class SubmarinePhysics : MonoBehaviour
     private float ballastLevel = 0.5f;
 
     private const float WaterDensity = 1000f;
-    private const float SubmersionRange = 0.2f;
     private const float WaterLinearDamping = 2.5f;
     private const float WaterAngularDamping = 2.5f;
     private const float AirLinearDamping = 0.05f;
@@ -107,7 +108,7 @@ public class SubmarinePhysics : MonoBehaviour
             if (depth > 0f)
             {
                 submergedCount++;
-                float submersion = Mathf.Clamp01(depth / SubmersionRange);
+                float submersion = Mathf.Clamp01(depth / Mathf.Max(submersionRange, 0.001f));
                 float force = WaterDensity * gravity * volumePerVertex * submersion;
                 rb.AddForceAtPosition(Vector3.up * force, worldPos, ForceMode.Force);
             }

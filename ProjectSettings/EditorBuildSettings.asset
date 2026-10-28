@@ -12,7 +12,7 @@ EditorBuildSettings:
     path: Assets/TestBasin/Scenes/Basin_NoGrid.unity
     guid: cc64c055967113c1293c4bfec13e39af
   - enabled: 1
-    path: Assets/AUV/Scenes/Sumarine_model.unity
+    path: Assets/AUV/Scenes/Submarine_model.unity
     guid: bce1aa141efb34aa381c1d16511a5bbb
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
