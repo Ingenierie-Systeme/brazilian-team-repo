@@ -110,7 +110,7 @@ HLSL shader for URP, with main light, received and cast shadows, fog, and `Shado
 Each scene contains:
 - a **directional light** with soft shadows, the default sky and three-color ambient light (no lightmap baking needed);
 - a **camera** with `SimulationCamera` (follows the AUV) and `UnderwaterEffect`;
-- the **robot fish** (`RobotFish` prefab, see 3.7) at (0, 3, −6), heading +Z, with `GroundTruthLogger`.
+- the **robot fish** (`RobotFishDetailed` prefab, see 3.7) at (0, 3, −6), heading +Z, with `GroundTruthLogger`.
 
 Both scenes are in the **Build Settings**, and any change to the prefab applies to both.
 
@@ -128,7 +128,7 @@ Both scenes are in the **Build Settings**, and any change to the prefab applies 
 
 ### 3.7 Robot fish integration
 
-The robot is the **`RobotFish` prefab** (`Assets/AUV/Prefabs/RobotFish.prefab`), used by both basin scenes. Its physics (`RobotFishPhysics`: mass from the CAD, buoyancy over the real displaced volume, water drag, sliding mass, tail and dorsal fins) is described in [RobotFish_Model.md](RobotFish_Model.md).
+The robot is the **`RobotFishDetailed` prefab** (`Assets/AUV/Prefabs/RobotFishDetailed.prefab`, CAD parts with a transparent hull and moving mechanisms), used by both basin scenes; `RobotFish` is a lightweight version with the same physics. Their physics (`RobotFishPhysics`: mass from the CAD, buoyancy over the real displaced volume, water drag, moving mass, tail and dorsal fins) is described in [RobotFish_Model.md](RobotFish_Model.md).
 
 - **Water level:** `RobotFishPhysics` reads the basin water surface height (`TestBasin.WaterSurfaceY`, 5.5 m) directly, so the water height is defined only in the basin.
 - **Sensors** (RGB camera, INS with magnetometer, pressure, GNSS) are mounted on the prefab and publish to ROS 2; see [AUV_Sensors.md](AUV_Sensors.md).
@@ -142,7 +142,7 @@ Robot controls (from `RobotFishPhysics`):
 | --- | --- |
 | Space | temporary thrust (until the tail flapping model) |
 | A / D | tail fin (turn left / right; only while moving) |
-| W / S | sliding mass forward / backward (nose down / up) |
+| W / S | moving mass forward / backward (nose down / up) |
 | Q or Shift / E or Ctrl | test ballast: heavier / lighter (**simulation only**, the real robot has no ballast) |
 
 ## 4. Verification
@@ -159,7 +159,7 @@ Both scenes were checked by measuring the generated pieces and by running **15 s
 | Basin material | Basin_Grid | Basin_Plain |
 | BasinGrid shader | compiles without errors | — |
 
-Play-mode test with the first AUV model and its sensors (Basin_Grid, ROS-TCP-Endpoint running; the test drives the AUV directly); the robot fish model is verified in [RobotFish_Model.md](RobotFish_Model.md#4-verification):
+Play-mode test with the first AUV model and its sensors (Basin_Grid, ROS-TCP-Endpoint running; the test drives the AUV directly); the robot fish model is verified in [RobotFish_Model.md](RobotFish_Model.md#5-verification):
 - `SubmarinePhysics.waterLevel` = 5.500, synced from the basin;
 - 0–5 s at rest: the AUV stays at y = 3.0 m (neutral buoyancy);
 - 5–10 s at cruise speed (0.4 m/s): 1.9 m along +Z; 10–12 s: right turn;
@@ -187,7 +187,7 @@ A video of the simulation is available in `media/basin_simulation.mp4`.
 2. In the Project window, open `Assets/TestBasin/Scenes/Basin_Grid` (with grid) or `Basin_NoGrid` (without grid).
 3. Press **▶ Play** and drive the AUV with the keys of section 3.7. The camera follows it; below 5.5 m inside the basin, the underwater fog turns on.
 4. Press **C** for the free camera: hold the **right mouse button** and use **WASD**, **Q/E** (down/up) and **Shift** (faster). Press **C** again to follow the AUV.
-5. To test buoyancy: change the test ballast with **Q/E** (simulation only) and watch the robot rise or sink, or set `Buoyancy Trim Percent` on `RobotFish` (e.g. 2 = floats); `RobotFishPhysics` parameters are on the `RobotFish` prefab.
+5. To test buoyancy: with the default moving mass (100 g) the robot floats; set `Moving Mass` to 2.282 on `RobotFishDetailed` (`Robot Fish Physics`) for a neutral robot, or change the test ballast with **Q/E** (simulation only). `RobotFishPhysics` parameters are on the robot fish prefabs.
 6. When leaving Play mode, the Console prints the path of the CSV file, saved in `GroundTruthLogs/`.
 7. To change the basin, edit the `TestBasin` parameters on the prefab; the pieces regenerate automatically.
 
@@ -202,7 +202,7 @@ A video of the simulation is available in `media/basin_simulation.mp4`.
 ## 6. Limitations and next steps
 
 - **Submerged fraction:** estimated with the world-axis-aligned bounding box, which is an approximation for a tilted body. Next step: sample points inside the hull volume, as in exercise 4 of the course handout ("Floating Cube").
-- **Robot physics (slide 14):** see the limitations of the robot fish model in [RobotFish_Model.md](RobotFish_Model.md#6-limitations) (tail flapping propulsion not modeled yet, no sideways added mass).
+- **Robot physics (slide 14):** see the limitations of the robot fish model in [RobotFish_Model.md](RobotFish_Model.md#7-limitations) (tail flapping propulsion not modeled yet, no sideways added mass).
 - **Sensors (slide 15):** RGB camera, INS, pressure and GNSS are on the AUV, see [AUV_Sensors.md](AUV_Sensors.md).
 - **AUV model:** replace the cylinder with the CAD model (`Assembly.obj`), keeping a simple collider on top.
 - **AUV tuning:** the thrust is applied on the AUV axis, 5 cm above the center of mass, so full thrust pitches the nose down by about 6° (sin θ = T / (m·g)); the mass (5 kg) is an estimate to be replaced by the measured value.

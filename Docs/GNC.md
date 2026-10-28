@@ -21,14 +21,14 @@ The simulation ground truth (`/ins/velocity`, `/gnss/ground_truth`, `GroundTruth
 
 Navigation, guidance and control run as ROS 2 nodes; the Unity simulation is the "plant" (physics + sensors + actuators).
 
-**The real robot is a robot fish** ([RobotFish_Model.md](RobotFish_Model.md)): no propeller and no ballast. A single tail fin, moved side to side by a servo, gives propulsion (by flapping) and steering; it changes depth only by swimming forward with the nose tilted by the sliding mass (aft = nose up, forward = nose down), like a glider. The simulation keeps a ballast to set up tests, but the GNC never uses it. See section 4.
+**The real robot is a robot fish** ([RobotFish_Model.md](RobotFish_Model.md)): no propeller and no ballast. A single tail fin, moved side to side by a servo, gives propulsion (by flapping) and steering; it changes depth only by swimming forward with the nose tilted by the moving mass that slides along the tube axis (aft = nose up, forward = nose down), like a glider. The simulation keeps a ballast to set up tests, but the GNC never uses it. See section 4.
 
 ## 2. Status
 
 | Step | Content | Status |
 | --- | --- | --- |
 | 1 | Actuator command interface (Unity side) | done |
-| 1b | Robot fish model from the CAD: mass, buoyancy, water drag, sliding mass, tail and dorsal fins ([RobotFish_Model.md](RobotFish_Model.md)) | done |
+| 1b | Robot fish model from the CAD: mass, buoyancy, water drag, moving mass, tail and dorsal fins ([RobotFish_Model.md](RobotFish_Model.md)) | done |
 | 1c | Tail flapping propulsion and tail commands (frequency, amplitude, offset) | planned |
 | 2 | Heading control | planned |
 | 3 | Navigation node | planned |
@@ -46,7 +46,7 @@ Each actuator has its own topic, type `std_msgs/Float64`, value normalized to [-
 | --- | --- | --- | --- | --- |
 | `/cmd/thrust` | **temporary** forward force (until step 1c) | full reverse | full forward | `temporaryThrust` = 0.3 N (≈ 0.3 m/s) |
 | `/cmd/rudder` | tail fin angle (servo) | full left turn | full right turn | `maxTailAngle` = 30° (turns only while moving) |
-| `/cmd/pitch` | sliding mass (target position) | mass aft, nose up | mass forward, nose down | `slidingTravel` = 24 mm (≈ ±5° of pitch) |
+| `/cmd/pitch` | moving mass on the tube axis | back end, nose up | front end, nose down | 0 = rest position (robot level); `movingMassTravel` = ±150 mm |
 | `/cmd/ballast` | test ballast (speed), **simulation only** | lighter, rises | heavier, sinks | `ballastRange` = ±25 % of the volume, `ballastRate` = 12.5 %/s |
 
 Values outside [-1, 1] are clamped; NaN is read as 0.
@@ -60,7 +60,7 @@ Values outside [-1, 1] are clamped; NaN is read as 0.
 ### 3.2 Unity side
 
 - `RobotFishPhysics` (`Assets/AUV/Scripts/RobotFishPhysics.cs`) reads four public commands (`thrustCommand`, `rudderCommand`, `pitchCommand`, `ballastCommand`). With `externalControl` off, the keyboard writes them (Space, A/D, W/S, Q/E: 0 or ±1). With `externalControl` on, the keyboard is ignored.
-- `ActuatorCommandSubscriber` (`Assets/AUV/Scripts/Control/ActuatorCommandSubscriber.cs`), on the `RobotFish` prefab, subscribes to the four topics and hands the commands to `RobotFishPhysics` before each physics step. `RobotFishPhysics` itself has no dependency on ROS.
+- `ActuatorCommandSubscriber` (`Assets/AUV/Scripts/Control/ActuatorCommandSubscriber.cs`), on the robot fish prefabs, subscribes to the four topics and hands the commands to `RobotFishPhysics` before each physics step. `RobotFishPhysics` itself has no dependency on ROS.
 
 ### 3.3 Watchdog
 
@@ -113,13 +113,13 @@ ros2 topic echo /depth                                     # depth decreases whi
 ros2 topic echo /imu/data --field angular_velocity.z       # yaw rate, positive while turning left
 ```
 
-In the Unity Inspector, `RobotFish` → `Actuator Command Subscriber` shows `Ros In Control`, the last commands received and the message count.
+In the Unity Inspector, `RobotFishDetailed` → `Actuator Command Subscriber` shows `Ros In Control`, the last commands received and the message count.
 
 **Note on shared networks (e.g. the lab network):** by default ROS 2 discovers every machine of the local network, so `ros2 topic list` also shows the topics of other robots, and commands such as `/cmd/thrust` could reach them (or theirs could reach the simulation). `ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST` keeps the ROS graph on this machine, which is enough because Unity talks to the endpoint over TCP on 127.0.0.1. Set it in every terminal, including the endpoint one. After changing it, run `ros2 daemon stop` once so that the ROS 2 daemon forgets the robots it already discovered.
 
 ### 3.5 Verification
 
-Scripted test in `Basin_Grid`: a ROS 2 node published a command sequence at 20 Hz, Unity logged the AUV state. This test was made with the first AUV model (propeller and rudder torque); the robot fish model is verified in [RobotFish_Model.md](RobotFish_Model.md#4-verification).
+Scripted test in `Basin_Grid`: a ROS 2 node published a command sequence at 20 Hz, Unity logged the AUV state. This test was made with the first AUV model (propeller and rudder torque); the robot fish model is verified in [RobotFish_Model.md](RobotFish_Model.md#5-verification).
 
 | Commands | Result |
 | --- | --- |
@@ -135,7 +135,8 @@ Scripted test in `Basin_Grid`: a ROS 2 node published a command sequence at 20 H
 
 The physics of the robot fish is described in [RobotFish_Model.md](RobotFish_Model.md). For the GNC, the main consequences are:
 
-- **No ballast:** depth is controlled only through the pitch (sliding mass) while swimming forward. Vertical speed ≈ forward speed × sin(pitch), and the sliding mass gives only about ±5° of pitch (estimate), so depth changes are slow (≈ 2.6 cm/s at 0.3 m/s). Depth control will be a cascade: depth error → desired pitch → sliding mass.
+- **No ballast:** depth is controlled only through the pitch (moving mass) while swimming forward. Vertical speed ≈ forward speed × sin(pitch). With the moving mass heavy enough to be neutral (≈ 2.3 kg), a few centimetres of displacement tilt the robot by tens of degrees and its full travel (±150 mm) makes it vertical, so the depth controller must limit the displacement it commands. Depth control will be a cascade: depth error → desired pitch → moving-mass position.
+- **Weak self-righting:** the center of mass is only 3–6 mm below the center of buoyancy, so the robot tilts and rolls easily and pitch oscillates slowly after a change; the pitch loop must damp it.
 - **Turning needs speed:** the tail fin only steers while water flows over it (force ∝ speed²); heading control is effective only while swimming.
 - **One fin for propulsion and steering (step 1c):** the fin will flap to swim; speed will be set by the flapping frequency and amplitude, and the heading by the offset of the oscillation. Until then a temporary thrust force replaces the flapping.
-- **Unknown buoyancy:** the controllers must work for a neutral robot (trim 0 %) and a slightly floating one (+2 %).
+- **Unknown buoyancy:** it depends on the real masses and on the weight added to the moving mass (with 100 g the robot floats strongly). The controllers must work for a neutral robot and for a slightly floating one.

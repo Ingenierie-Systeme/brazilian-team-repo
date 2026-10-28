@@ -5,7 +5,7 @@ What it does:
   1. Reads the URDF, places every part in the robot frame (forward kinematics, all joints at 0).
   2. Measures each part from its mesh: volume, centroid, inertia (exact integration over the closed mesh).
   3. Gives each part a mass from assumptions.yaml (CAD volume × density, or a datasheet mass).
-  4. Computes the displaced volume, centers of mass and buoyancy, trim ballast, pitch authority of the
+  4. Computes the displaced volume, centers of mass and buoyancy, buoyancy for several moving masses, pitch authority of the
      sliding mass, inertia, and the geometry of the tail and dorsal fins.
   5. Writes a Markdown report and two images into the Docs folder.
 
@@ -177,31 +177,33 @@ def main():
     vol_disp = sum(v for _, v, _ in hull)
     cob = sum(v * c for _, v, c in hull) / vol_disp
 
-    # ---- 3. trim ballast that makes the robot neutral (or the target buoyancy) and level
-    trim = A['trim_ballast']
-    m_total = RHO_WATER * vol_disp / (1 + trim['target_buoyancy_percent'] / 100)
-    m_trim = m_total - m_dry
-    y_trim = (m_total * cob[1] - m_dry * com_dry[1]) / m_trim     # CoM right below the CoB → rests level
-    trim_pos = np.array([0, y_trim, trim['height_mm'] / 1000])
-    rows.append(('trim ballast (lead)', 'computed', 'estimate', 0.0, m_trim, trim_pos, np.zeros((3, 3))))
-    com = sum(r[4] * r[5] for r in rows) / m_total
+    # ---- 3. moving mass on the tube axis (pitch control; its weight is adjustable, the robot carries no ballast)
+    mm_spec = A['moving_mass']
+    m_move = mm_spec['mass_g'] / 1000
+    move_pos = np.array(mm_spec['center_mm'], float) / 1000       # center of its travel
+    half_travel = mm_spec['travel_mm'] / 2000                     # ± around the center
+    m_total = m_dry + m_move
+    com = (m_dry * com_dry + m_move * move_pos) / m_total         # moving mass at the center of its travel
     bg = cob[2] - com[2]                                          # CoM below CoB
+    buoyancy_pct = (RHO_WATER * vol_disp / m_total - 1) * 100     # + = floats
+    m_neutral = RHO_WATER * vol_disp - m_dry                      # moving mass that makes the robot neutral
+    rest_pitch = np.degrees(np.arctan2(com[1] - cob[1], bg))      # + = CoM behind the CoB → nose up at rest
 
-    # ---- 4. inertia about the CoM (parallel-axis theorem) + added inertia of the hull in pitch and yaw
+    def balance(m):
+        """Total mass, BG, buoyancy and maximum static pitch with a moving mass m [kg] (at the center, then at an end)."""
+        mt = m_dry + m
+        c = (m_dry * com_dry + m * move_pos) / mt
+        b = cob[2] - c[2]
+        pitch = np.degrees(np.arctan2(m * half_travel, mt * b))  # tan θ = m·d / (M·BG)
+        return mt, b, (RHO_WATER * vol_disp / mt - 1) * 100, pitch
+
+    # ---- 4. inertia of the structure about its own CoM (the simulation adds the moving mass at its current position)
     inertia = np.zeros((3, 3))
     for r in rows:
-        d = r[5] - com
+        d = r[5] - com_dry
         inertia += r[6] + r[4] * (np.dot(d, d) * np.eye(3) - np.outer(d, d))
     added_rot = RHO_WATER * np.pi * r_tube**2 * tube_len**3 / 12  # slender cylinder, about a lateral axis
     added_lat = RHO_WATER * np.pi * r_tube**2 * tube_len          # added mass sideways / vertical
-
-    # ---- 5. sliding mass: pitch authority
-    sm = A['sliding_mass']
-    m_slide = A['extra_masses']['sliding_weights']['mass'] / 1000
-    travel = sm['horn_radius_mm'] / 1000 * np.sin(np.radians(sm['servo_range_deg']))
-    restoring = m_total * G * bg                                  # N·m per radian of pitch
-    pitch_max = np.degrees(m_slide * G * travel / restoring)
-    carriage_speed = sm['horn_radius_mm'] / 1000 * np.radians(60) / sm['servo_speed_s_per_60deg']
 
     # ---- 6. fins
     tail_area, tail_n, tail_t = fin_geometry(parts['calda']['tri'])
@@ -243,29 +245,32 @@ def main():
     L.append('| Part | Material / source | Status | CAD volume [cm³] | Mass [g] | Centroid CAD [mm] |\n| --- | --- | --- | --- | --- | --- |')
     for name, mat, st, v, m, c, _ in rows:
         L.append(f'| `{name}` | {mat} | {st} | {v:.1f} | {m * 1000:.0f} | {mm(c)} |')
-    L.append(f'| **Total** | | | | **{m_total * 1000:.0f}** | |\n')
+    L.append(f'| **Total structure** (without the moving mass) | | | | **{m_dry * 1000:.0f}** | {mm(com_dry)} |\n')
+    L.append('The robot carries no ballast: its weight is the structure above plus the moving mass.\n')
     L.append('## Buoyancy and balance\n')
     L.append('| Quantity | Value |\n| --- | --- |')
-    L.append(f'| Displaced volume | {vol_disp * 1e3:.2f} L (' + ', '.join(f'{n} {v * 1e3:.2f}' for n, v, _ in hull[:3]) + f', parts outside the hull {sum(v for _, v, _ in hull[3:]) * 1e3:.2f}) |')
-    L.append(f'| Dry mass (without trim ballast) | {m_dry:.2f} kg → buoyancy {(RHO_WATER * vol_disp / m_dry - 1) * 100:+.0f} % of the weight |')
-    L.append(f'| Target buoyancy | {trim["target_buoyancy_percent"]:+g} % |')
-    L.append(f'| Trim ballast needed | **{m_trim * 1000:.0f} g** at y = {y_trim * 1000:.1f} mm, z = {trim["height_mm"]} mm (CAD) |')
-    L.append(f'| Total mass | {m_total:.2f} kg |')
+    L.append(f'| Displaced volume | {vol_disp * 1e3:.2f} L (' + ', '.join(f'{n} {v * 1e3:.2f}' for n, v, _ in hull[:3]) + f', parts outside the hull {sum(v for _, v, _ in hull[3:]) * 1e3:.2f}) → the water pushes up with the weight of {vol_disp * 1e3:.2f} kg |')
+    L.append(f'| Structure | {m_dry:.2f} kg |')
+    L.append(f'| Moving mass (current) | {m_move * 1000:.0f} g, on the tube axis |')
+    L.append(f'| Total mass | {m_total:.2f} kg → buoyancy **{buoyancy_pct:+.0f} %** of the weight ({"floats" if buoyancy_pct > 0 else "sinks"}) |')
+    L.append(f'| Moving mass for neutral buoyancy | **{m_neutral * 1000:.0f} g** |')
     L.append(f'| Center of buoyancy (CAD) | {mm(cob)} mm |')
-    L.append(f'| Center of mass (CAD) | {mm(com)} mm |')
-    L.append(f'| CoM below CoB (BG) | {bg * 1000:.1f} mm → righting moment {restoring:.2f} N·m/rad |\n')
-    L.append('## Sliding mass (pitch)\n')
-    L.append('| Quantity | Value |\n| --- | --- |')
-    L.append(f'| Moving weight | {m_slide * 1000:.0f} g |')
-    L.append(f'| Travel | ±{travel * 1000:.1f} mm (horn {sm["horn_radius_mm"]} mm × sin {sm["servo_range_deg"]}°) |')
-    L.append(f'| Carriage speed | {carriage_speed:.2f} m/s (HS-5496MH {sm["servo_speed_s_per_60deg"]} s/60°) |')
-    L.append(f'| CoM shift at full travel | ±{m_slide * travel / m_total * 1000:.2f} mm |')
-    L.append(f'| Maximum static pitch | ±{pitch_max:.1f}° |')
-    for mw in (0.8, 1.2):
-        L.append(f'| (with {mw * 1000:.0f} g in the carriage) | ±{np.degrees(mw * G * travel / restoring):.1f}° |')
+    L.append(f'| Center of mass (CAD), moving mass centered | {mm(com)} mm |')
+    L.append(f'| CoM below CoB (BG) | {bg * 1000:.1f} mm → righting moment {m_total * G * bg:.2f} N·m/rad |')
+    L.append(f'| CoM behind the CoB | {(com[1] - cob[1]) * 1000:.1f} mm → resting pitch {rest_pitch:+.1f}° (+ = nose up) with the moving mass centered |\n')
+    L.append('The structure masses are estimates (CAD volume × assumed material), so the buoyancy is uncertain: '
+             'weighing the robot is the best way to confirm it.\n')
+    L.append('## Moving mass (pitch)\n')
+    L.append(f'Travel: {mm_spec["travel_mm"]} mm along the tube axis (±{half_travel * 1000:.0f} mm), speed {mm_spec["speed_mm_s"]} mm/s (estimate). '
+             'The maximum static pitch is reached with the mass at one end of its travel (submerged robot): tan θ = m·d / (M·BG).\n')
+    L.append('| Moving mass | Total mass | Buoyancy | BG | Maximum static pitch |\n| --- | --- | --- | --- | --- |')
+    for m, label in [(m_move, f'{m_move * 1000:.0f} g (current)'), (0.5, '500 g'), (1.0, '1000 g'), (m_neutral, f'{m_neutral * 1000:.0f} g (neutral)')]:
+        mt, b, bp, pmax = balance(m)
+        L.append(f'| {label} | {mt:.2f} kg | {bp:+.0f} % | {b * 1000:.1f} mm | ±{pmax:.0f}° |')
     L.append('')
     L.append('## Inertia\n')
     iu = to_unity_tensor(inertia)
+    L.append('Structure only, about its own center of mass (the simulation adds the moving mass at its current position).\n')
     L.append('| Axis (Unity) | Rigid body [kg·m²] | Added (water) [kg·m²] | Total used [kg·m²] |\n| --- | --- | --- | --- |')
     L.append(f'| roll (x, long axis) | {iu[0, 0]:.4f} | 0 | {iu[0, 0]:.4f} |')
     L.append(f'| yaw (y, vertical) | {iu[1, 1]:.4f} | {added_rot:.4f} | {iu[1, 1] + added_rot:.4f} |')
@@ -285,9 +290,10 @@ def main():
     L.append('## Values for the Unity simulation (`RobotFishPhysics`)\n')
     L.append('| Field | Value |\n| --- | --- |')
     L.append(f'| `displacedVolume` | {vol_disp:.5f} m³ |')
-    L.append(f'| `centerOfMass` (Unity) | {mm(to_unity(com))} mm |')
-    L.append(f'| `inertia` (Unity x, y, z) | ({iu[0, 0]:.4f}, {iu[1, 1] + added_rot:.4f}, {iu[2, 2] + added_rot:.4f}) kg·m² |')
-    L.append(f'| `slidingMass`, `slidingTravel`, `slidingSpeed` | {m_slide:.2f} kg, {travel:.3f} m, {carriage_speed:.2f} m/s |')
+    L.append(f'| `structureMass` | {m_dry:.3f} kg |')
+    L.append(f'| `structureCenterOfMass` (Unity) | {mm(to_unity(com_dry))} mm |')
+    L.append(f'| `structureInertia` (Unity x, y, z) | ({iu[0, 0]:.4f}, {iu[1, 1] + added_rot:.4f}, {iu[2, 2] + added_rot:.4f}) kg·m² |')
+    L.append(f'| `movingMass`, `movingMassTravel`, `movingMassSpeed` | {m_move:.2f} kg, ±{half_travel:.3f} m, {mm_spec["speed_mm_s"] / 1000:.3f} m/s |')
     L.append(f'| `tailHinge` (Unity) | {mm(to_unity(hinge))} mm |')
     L.append(f'| tail fin center of pressure | {tail_cp:.3f} m behind the hinge, height {(tail_lo[2] + tail_hi[2]) / 2:.3f} m |')
     L.append(f'| `tailFinArea`, `dorsalFinArea` | {tail_area:.4f} m², {dors_area:.4f} m² |')
@@ -298,7 +304,7 @@ def main():
         f.write('\n'.join(L) + '\n')
     print('\n'.join(L))
     print(f'\nwritten: {report}')
-    draw(parts, os.path.join(args.docs, 'images'), com, cob, trim_pos)
+    draw(parts, os.path.join(args.docs, 'images'), com, cob, move_pos, half_travel)
 
 
 # ---------------------------------------------------------------- images
@@ -313,7 +319,7 @@ GROUPS = [
 ]
 
 
-def draw(parts, out, com, cob, trim_pos):
+def draw(parts, out, com, cob, move_pos, half_travel):
     import matplotlib
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
@@ -332,8 +338,9 @@ def draw(parts, out, com, cob, trim_pos):
             ax.annotate('CoM', (com[1] * 1000, com[2] * 1000), xytext=(8, -14), textcoords='offset points')
             ax.plot(cob[1] * 1000, cob[2] * 1000, 'bx', ms=10, mew=2)
             ax.annotate('CoB', (cob[1] * 1000, cob[2] * 1000), xytext=(8, 6), textcoords='offset points', color='b')
-            ax.plot(trim_pos[1] * 1000, trim_pos[2] * 1000, 's', color='#444', ms=6)
-            ax.annotate('trim lead (estimate)', (trim_pos[1] * 1000, trim_pos[2] * 1000), xytext=(-40, -24), textcoords='offset points', fontsize=8)
+            ax.plot([(move_pos[1] - half_travel) * 1000, (move_pos[1] + half_travel) * 1000], [move_pos[2] * 1000] * 2, '-', color='#444', lw=3)
+            ax.plot(move_pos[1] * 1000, move_pos[2] * 1000, 's', color='#444', ms=7)
+            ax.annotate('moving mass and its travel', (move_pos[1] * 1000, move_pos[2] * 1000), xytext=(-60, 14), textcoords='offset points', fontsize=8)
         ax.autoscale()
         ax.set_aspect('equal')
         ax.set_title(title)

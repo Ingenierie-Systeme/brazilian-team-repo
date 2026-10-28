@@ -10,8 +10,8 @@ using UnityEngine.InputSystem;                        // keyboard (new Input Sys
 // The origin is the center of the hull tube.
 //
 // Each physics step (FixedUpdate):
-//   1. actuators: keyboard or external commands → sliding mass position, tail fin angle, temporary thrust;
-//   2. mass properties: the sliding mass moves the center of mass;
+//   1. actuators: keyboard or external commands → moving mass position, tail fin angle, temporary thrust;
+//   2. mass properties: structure + moving mass (its position changes the center of mass and the inertia);
 //   3. buoyancy: computed over points that fill the real displaced volume (hull, dome, parts outside);
 //   4. hull drag: quadratic, small along the hull, large across it ("strip theory": the hull is cut into
 //      slices, each one sees its own water velocity, so the drag also resists rotations);
@@ -32,15 +32,15 @@ public class RobotFishPhysics : MonoBehaviour
     public float fallbackWaterLevel = 0f;
 
     // ------------------------------------------------------------------ mass properties
-    [Header("Mass properties (Docs/RobotFish_CAD_Report.md)")]
-    [Tooltip("Buoyancy in % of the weight: 0 = neutral, +2 = floats slowly. Sets the mass: mass = ρ·V / (1 + trim).")]
-    public float buoyancyTrimPercent = 0f;
-    [Tooltip("Center of mass with the sliding mass centered, local axes [m].")]
-    public Vector3 centerOfMass = new Vector3(0.0061f, -0.0248f, 0f);
-    [Tooltip("Assumes the trim lead is placed so that the robot rests level: the center of mass is moved right under the center of buoyancy computed from the buoyancy points (only its height is kept).")]
-    public bool levelTrim = true;
-    [Tooltip("Principal moments of inertia about the local axes x (roll), y (yaw), z (pitch), including the added inertia of the water [kg·m²].")]
-    public Vector3 inertia = new Vector3(0.0059f, 0.1439f, 0.1455f);
+    // The robot carries no ballast: its mass is the structure (every part, estimated from the CAD) plus the
+    // moving mass. Its buoyancy is therefore a result, not a setting (see Docs/RobotFish_CAD_Report.md).
+    [Header("Structure (everything except the moving mass, Docs/RobotFish_CAD_Report.md)")]
+    [Tooltip("Mass of the structure: hull, electronics, battery, servos, fins [kg] (estimate from the CAD).")]
+    public float structureMass = 2.432f;
+    [Tooltip("Center of mass of the structure, local axes [m].")]
+    public Vector3 structureCenterOfMass = new Vector3(0.0390f, -0.0080f, 0f);
+    [Tooltip("Principal moments of inertia of the structure about its own center of mass, local axes x (roll), y (yaw), z (pitch), including the added inertia of the water [kg·m²].")]
+    public Vector3 structureInertia = new Vector3(0.0044f, 0.1307f, 0.1309f);
 
     // ------------------------------------------------------------------ hull geometry (displaced volume)
     [Header("Hull geometry (CAD)")]
@@ -96,14 +96,18 @@ public class RobotFishPhysics : MonoBehaviour
     public Vector3 dorsalFinCenter = new Vector3(0.170f, 0.0853f, 0f);
     public FinProperties dorsalFin = new FinProperties { area = 0.0042f, liftSlope = 1.2f, stallAngle = 25f };
 
-    // ------------------------------------------------------------------ sliding mass
-    [Header("Sliding mass (pitch)")]
-    [Tooltip("Moving weight in the carriage [kg] (estimate).")]
-    public float slidingMass = 0.40f;
-    [Tooltip("Travel of the carriage from the center to each end [m].")]
-    public float slidingTravel = 0.024f;
-    [Tooltip("Carriage speed [m/s] (HS-5496MH servo at 7.4 V).")]
-    public float slidingSpeed = 0.25f;
+    // ------------------------------------------------------------------ moving mass
+    [Header("Moving mass (pitch)")]
+    [Tooltip("Weight that slides along the tube axis [kg]. Adjustable on the real robot: starts at 0.1 kg, more is added as needed (about 2.3 kg makes the robot neutral).")]
+    public float movingMass = 0.1f;
+    [Tooltip("Travel from the tube center to each end [m] (tube length minus 5 cm at each end: ±0.15 m).")]
+    public float movingMassTravel = 0.15f;
+    [Tooltip("Speed of the moving mass [m/s] (estimate: the actuator is not known).")]
+    public float movingMassSpeed = 0.05f;
+    [Tooltip("Position of the moving mass for a pitch command of 0 [m, + = forward].")]
+    public float movingMassRestPosition = 0f;
+    [Tooltip("At start, sets the rest position so that the robot rests level when submerged (moving mass right under the center of buoyancy), as an operator would do. Clamped to the travel.")]
+    public bool levelAtRest = true;
 
     // ------------------------------------------------------------------ temporary propulsion and test ballast
     [Header("Temporary propulsion (replaced by the tail flapping in step 1c)")]
@@ -124,20 +128,21 @@ public class RobotFishPhysics : MonoBehaviour
     [Range(-1f, 1f)] public float thrustCommand = 0f;
     [Tooltip("Tail fin angle as a fraction of maxTailAngle. Positive = turn right (D).")]
     [Range(-1f, 1f)] public float rudderCommand = 0f;
-    [Tooltip("Sliding mass target position. Positive = mass forward, nose down (W).")]
+    [Tooltip("Moving mass target: 0 = rest position, +1 = front end (nose down, W), −1 = back end (nose up, S).")]
     [Range(-1f, 1f)] public float pitchCommand = 0f;
     [Tooltip("SIMULATION ONLY. Test ballast pump. Positive = fill, heavier (Q).")]
     [Range(-1f, 1f)] public float ballastCommand = 0f;
 
     // ------------------------------------------------------------------ debug
     [Header("Debug (read-only)")]
-    public float mass;                                // computed from the volume and the trim [kg]
+    public float mass;                                // structure + moving mass [kg]
+    public float buoyancyPercent;                     // (water pushed up / weight − 1) × 100: + = floats
     public float displacedVolume;                     // sum of the buoyancy points [m³]
     public float submergedFraction;                   // part of the volume under water
     public float buoyancyForce;                       // [N]
     public float forwardSpeed;                        // [m/s]
     public float finAngle;                            // current tail fin angle [deg], + = turns right
-    public float slidingPosition;                     // carriage position [m], + = forward
+    public float movingMassPosition;                  // position along the tube axis [m], + = forward
     public float ballastAdjust;                       // test ballast [fraction of the volume], + = heavier
     public Vector3 centerOfBuoyancy;                  // local axes [m], with the robot fully submerged
 
@@ -174,19 +179,34 @@ public class RobotFishPhysics : MonoBehaviour
         rb.angularDamping = 0f;
         BuildBuoyancyPoints();
         BuildDragSlices();
-        mass = WaterDensity * displacedVolume / (1f + buoyancyTrimPercent / 100f);
-        if (levelTrim)                                // CoM right below the CoB: no pitch or roll at rest
+        mass = structureMass + movingMass;
+        buoyancyPercent = (WaterDensity * displacedVolume / mass - 1f) * 100f;
+        if (levelAtRest && movingMass > 1e-4f)        // CoM under the CoB: structure·x_s + moving·x_m = mass·x_B
         {
-            centerOfMass.x = centerOfBuoyancy.x;
-            centerOfMass.z = centerOfBuoyancy.z;
+            float x = (mass * centerOfBuoyancy.x - structureMass * structureCenterOfMass.x) / movingMass;
+            movingMassRestPosition = Mathf.Clamp(-x, -movingMassTravel, movingMassTravel);   // forward = −X
         }
-        rb.mass = mass;
+        movingMassPosition = movingMassRestPosition;
         rb.automaticInertiaTensor = false;
-        rb.inertiaTensor = inertia;
-        rb.inertiaTensorRotation = Quaternion.identity;
         rb.automaticCenterOfMass = false;
-        rb.centerOfMass = centerOfMass;
+        rb.inertiaTensorRotation = Quaternion.identity;
+        UpdateMassProperties();
     }
+
+    // Mass, center of mass and inertia of structure + moving mass (the moving mass is on the tube axis)
+    void UpdateMassProperties()
+    {
+        mass = structureMass + movingMass;
+        rb.mass = mass;
+        Vector3 movingPoint = Vector3.left * movingMassPosition;                      // forward = −X
+        Vector3 com = (structureMass * structureCenterOfMass + movingMass * movingPoint) / mass;
+        rb.centerOfMass = com;
+        // parallel-axis theorem: each part's inertia about the common center of mass (diagonal terms)
+        rb.inertiaTensor = structureInertia + ParallelAxis(structureMass, structureCenterOfMass - com) + ParallelAxis(movingMass, movingPoint - com);
+    }
+
+    static Vector3 ParallelAxis(float m, Vector3 d) =>
+        m * new Vector3(d.y * d.y + d.z * d.z, d.x * d.x + d.z * d.z, d.x * d.x + d.y * d.y);
 
     void FixedUpdate()
     {
@@ -227,9 +247,12 @@ public class RobotFishPhysics : MonoBehaviour
         finRate = (finAngle - previous) * Mathf.Deg2Rad / dt;
         if (tailFinPivot != null) tailFinPivot.localRotation = Quaternion.Euler(0f, -finAngle, 0f); // + angle: trailing edge to the right (+Z)
 
-        // sliding mass: the carriage moves, the center of mass moves by (m_slide / M) × carriage position
-        slidingPosition = Mathf.MoveTowards(slidingPosition, Mathf.Clamp(pitchCommand, -1f, 1f) * slidingTravel, slidingSpeed * dt);
-        rb.centerOfMass = centerOfMass + Vector3.left * (slidingMass / mass * slidingPosition); // forward = −X
+        // moving mass: 0 = rest position, +1 = front end, −1 = back end; it moves at a limited speed
+        float cmd = Mathf.Clamp(pitchCommand, -1f, 1f);
+        float rest = movingMassRestPosition;
+        float target = cmd >= 0f ? rest + cmd * (movingMassTravel - rest) : rest + cmd * (rest + movingMassTravel);
+        movingMassPosition = Mathf.MoveTowards(movingMassPosition, target, movingMassSpeed * dt);
+        UpdateMassProperties();
 
         // test ballast (simulation only)
         ballastAdjust = Mathf.Clamp(ballastAdjust + Mathf.Clamp(ballastCommand, -1f, 1f) * ballastRate * dt, -ballastRange, ballastRange);

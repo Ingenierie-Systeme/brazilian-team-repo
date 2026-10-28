@@ -76,3 +76,7 @@ Thumbs.db
 
 # Unity / Mono crash dumps
 mono_crash.*
+
+# Python virtual environment of Tools/cad_analysis
+/Tools/cad_analysis/.venv/
+__pycache__/
