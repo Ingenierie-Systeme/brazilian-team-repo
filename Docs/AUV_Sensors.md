@@ -74,28 +74,48 @@ The `Submarine` prefab is sized like the real AUV (CAD: about 0.61 m long, 0.10 
 
 The Unity project uses the ROS-TCP-Connector v0.7.0 with the ROS 2 message format (scripting define `ROS2`). On the ROS 2 side, the ROS-TCP-Endpoint (branch `main-ros2`) relays the messages:
 
+**Once: workspace with the endpoint**
+
 ```bash
-# once: workspace with the endpoint
+source /opt/ros/jazzy/setup.bash
 mkdir -p ~/ros2_ws/src && cd ~/ros2_ws/src
 git clone -b main-ros2 https://github.com/Unity-Technologies/ROS-TCP-Endpoint.git
-cd ~/ros2_ws && colcon build && source install/setup.bash
+cd ~/ros2_ws && colcon build
+```
 
-# every time
+**Terminal 1: ROS-TCP-Endpoint**
+
+```bash
+source /opt/ros/jazzy/setup.bash
+export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST   # keep the ROS graph on this machine (see the note below)
+cd ~/ros2_ws && source install/setup.bash
 ros2 run ros_tcp_endpoint default_server_endpoint --ros-args -p ROS_IP:=127.0.0.1
 ```
 
-Then press Play in a basin scene and check the topics:
+**Unity:** open `Assets/TestBasin/Scenes/Basin_Grid.unity`, press Play and click the Game view. The ROS indicator (top left) turns blue when connected. The Unity side connects to `127.0.0.1:10000` by default; another address can be set in **Robotics → ROS Settings**.
+
+**Terminal 2: check the topics** (`hz` and `echo` run until Ctrl+C, so one at a time):
 
 ```bash
-ros2 topic list
-ros2 topic hz /imu/data
-ros2 topic echo /depth
-ros2 topic echo /gnss/fix --field status
+source /opt/ros/jazzy/setup.bash
+export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
+ros2 topic list                              # the sensor topics of section 1
+ros2 topic hz /imu/data                      # about 50 Hz; Ctrl+C
+ros2 topic echo /depth                       # about 2.47 m at the start; Ctrl+C
+ros2 topic echo /gnss/fix --field status     # status -1 (no fix) under water, 0 at the surface; Ctrl+C
 ```
 
-The Unity side connects to `127.0.0.1:10000` by default; another address can be set in **Robotics → ROS Settings**.
+**Terminal 3: camera image** (needs `sudo apt install ros-jazzy-image-transport-plugins ros-jazzy-rqt-image-view` once). `rqt_image_view` expects the image_transport naming, so the JPEG topic is first converted to a raw image:
 
-To view the camera with `rqt_image_view`, the compressed transport plugin is needed (`sudo apt install ros-jazzy-image-transport-plugins`), and the topic name should follow the image_transport convention (set `compressedTopic` to `camera/image/compressed`).
+```bash
+source /opt/ros/jazzy/setup.bash
+export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
+ros2 run image_transport republish --ros-args -p in_transport:=compressed -p out_transport:=raw \
+  -r in/compressed:=/camera/compressed_image -r out:=/camera/image_raw &
+ros2 run rqt_image_view rqt_image_view /camera/image_raw
+```
+
+**Note on shared networks (e.g. the lab network):** by default ROS 2 discovers every machine of the local network, so `ros2 topic list` also shows the topics of other robots, and topics with the same names could mix. `ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST` keeps the ROS graph on this machine, which is enough because Unity talks to the endpoint over TCP on 127.0.0.1. Set it in every terminal, including the endpoint one. After changing it, run `ros2 daemon stop` once so that the ROS 2 daemon forgets the robots it already discovered.
 
 ## 6. Verification
 

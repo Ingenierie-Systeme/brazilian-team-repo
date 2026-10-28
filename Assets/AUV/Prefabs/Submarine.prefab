@@ -438,6 +438,7 @@ GameObject:
   - component: {fileID: 4329121079565986334}
   - component: {fileID: 5332060462752000343}
   - component: {fileID: 1598973338160170565}
+  - component: {fileID: 1334063849577820584}
   m_Layer: 0
   m_Name: Submarine
   m_TagString: Untagged
@@ -511,6 +512,35 @@ MonoBehaviour:
   maxPitchShift: 0.03
   pitchShiftSpeed: 1
   ballastRate: 0.25
+  externalControl: 0
+  thrustCommand: 0
+  rudderCommand: 0
+  pitchCommand: 0
+  ballastCommand: 0
+--- !u!114 &1334063849577820584
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5065660735435721084}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 670809ace4bb1067083795e7e0a0671a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ActuatorCommandSubscriber
+  submarine: {fileID: 1598973338160170565}
+  thrustTopic: cmd/thrust
+  rudderTopic: cmd/rudder
+  pitchTopic: cmd/pitch
+  ballastTopic: cmd/ballast
+  commandTimeout: 0.5
+  rosInControl: 0
+  lastThrust: 0
+  lastRudder: 0
+  lastPitch: 0
+  lastBallast: 0
+  commandsReceived: 0
 --- !u!1 &5407997702715966790
 GameObject:
   m_ObjectHideFlags: 0
