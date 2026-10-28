@@ -1,0 +1,71 @@
+# Assumptions used to estimate the physical properties of the robot fish from its CAD model.
+#
+# The Onshape export has no materials (the URDF "mass" of each part is its volume in m³), so the masses
+# below come from the CAD volume × an assumed density, or from a datasheet.
+# status: "estimate" (assumed), "datasheet" (from a product sheet) or "measured" (weighed / measured on the robot).
+# When a real value is known, change it here, set status to "measured" and run cad_analysis.py again.
+
+# Mass of each CAD part. Give either a density [g/cm³] (mass = CAD volume × density) or a mass [g].
+parts:
+  tube:                 {material: acrylic,                density: 1.19, status: estimate}
+  cap_front:            {material: PLA (3D printed),       density: 1.24, status: estimate}
+  cap_rear:             {material: PLA (3D printed),       density: 1.24, status: estimate}
+  dome_cercle:          {material: acrylic,                density: 1.19, status: estimate}
+  camera:               {material: camera module,          mass: 15,      status: estimate}
+  camera_mount:         {material: PLA,                    density: 1.24, status: estimate}
+  rail_400:             {material: aluminium,              density: 2.70, status: estimate}
+  rail_400_1:           {material: aluminium,              density: 2.70, status: estimate}
+  tray_rpi:             {material: PLA,                    density: 1.24, status: estimate}
+  tray_battery:         {material: PLA,                    density: 1.24, status: estimate}
+  rpi_navigator:        {material: Raspberry Pi 4 + Navigator board, mass: 80, status: estimate}
+  battery:              {material: LiPo,                   density: 2.2,  status: estimate}
+  _hs_5496mh:           {material: Hitec HS-5496MH servo,  mass: 61,      status: datasheet}
+  conector_servo:       {material: PLA,                    density: 1.24, status: estimate}
+  conector_servo_1:     {material: PLA,                    density: 1.24, status: estimate}
+  haste:                {material: steel rod,              density: 7.85, status: estimate}
+  conector_pesos:       {material: PLA,                    density: 1.24, status: estimate}
+  clamp:                {material: PLA,                    density: 1.24, status: estimate}
+  servo_mount:          {material: PLA,                    density: 1.24, status: estimate}
+  # Hitec D955TW (66 g, datasheet) inside a printed waterproof housing (rest of the CAD volume, PLA at 60 % infill)
+  underwater_servo:     {material: Hitec D955TW + PLA housing, servo_mass: 66, servo_volume_cm3: 29.6, housing_density: 0.744, status: estimate}
+  underwater_servo_hub: {material: aluminium,              density: 2.70, status: estimate}
+  conector_calda:       {material: PLA,                    density: 1.24, status: estimate}
+  calda:                {material: PLA,                    density: 1.24, status: estimate}
+  calda_lateral:        {material: PLA,                    density: 1.24, status: estimate}
+
+# Masses that are not in the CAD.
+extra_masses:
+  # Lead in the sliding-mass carriage (conector_pesos); placed at the carriage centroid.
+  sliding_weights:   {mass: 400, at_part: conector_pesos, status: estimate}
+  # Cables, screws, o-rings, connectors; placed at the tube center.
+  cables_and_screws: {mass: 100, at: [0, 0, 0], status: estimate}
+
+# Trim ballast: the team adds lead until the robot is neutral (or slightly positive). Assumed placed at the bottom
+# of the tube, at the longitudinal position that makes the robot rest level.
+trim_ballast:
+  target_buoyancy_percent: 0    # 0 = neutral; +2 = buoyancy 2 % larger than the weight
+  height_mm: -45                # height of the trim lead (tube axis = 0, tube inner radius = 50 mm)
+  status: estimate
+
+# Sliding-mass mechanism (HS-5496MH servo, horn and rod pushing the carriage).
+sliding_mass:
+  horn_radius_mm: 34            # servo axis → rod pin, measured on the CAD
+  servo_range_deg: 45           # ± rotation used (standard servo pulses)
+  servo_speed_s_per_60deg: 0.14 # HS-5496MH at 7.4 V (datasheet)
+  status: estimate
+
+# Tail servo (Hitec D955TW at 7.4 V, datasheet).
+tail_servo:
+  speed_s_per_60deg: 0.12
+  torque_kgf_cm: 29.0
+  max_angle_deg: 30             # ± fin angle used (estimate, limited by the fin connector)
+  status: datasheet
+
+# Hydrodynamics (literature values for a slender cylinder and small low-aspect-ratio fins).
+hydrodynamics:
+  water_density: 1000           # fresh water [kg/m³]
+  axial_drag_coefficient: 0.6   # on the frontal area, includes the tail servo and its support
+  crossflow_drag_coefficient: 1.1  # cylinder in crossflow (sideways and vertical motion)
+  fin_lift_slope_per_rad: 1.2   # low aspect ratio (≈ 0.75) fin, Helmbold formula
+  fin_stall_angle_deg: 25       # beyond it, flat-plate normal force 1.2·sin(α)
+  status: estimate

@@ -1,6 +1,6 @@
 # AUV sensors
 
-Simulated sensors of the micro-AUV (project slides 15 and 17), published to ROS 2 through the ROS-TCP-Connector.
+Simulated sensors of the robot fish (project slides 15 and 17), published to ROS 2 through the ROS-TCP-Connector.
 
 ![Robot camera](images/robot_camera.png)
 
@@ -8,7 +8,7 @@ Simulated sensors of the micro-AUV (project slides 15 and 17), published to ROS 
 
 ## 1. Overview
 
-All sensors are children of the `Submarine` prefab (`Assets/AUV/Prefabs/Submarine.prefab`), under `Sensors/`. Their scripts are in `Assets/AUV/Scripts/Sensors/`.
+All sensors are children of the `RobotFish` prefab (`Assets/AUV/Prefabs/RobotFish.prefab`), under `Sensors/`. Their scripts are in `Assets/AUV/Scripts/Sensors/`.
 
 | Sensor | Object (mount) | Script | Topic | Message | Rate |
 | --- | --- | --- | --- | --- | --- |
@@ -57,18 +57,16 @@ Topic names, rates and noise levels are fields of each component in the Inspecto
 - Error: slowly drifting Gauss-Markov process (2 m horizontal, 4 m vertical, 30 s correlation) plus a little white noise.
 - `/gnss/local` and `/gnss/ground_truth` give the measured and true positions in local ENU meters (simulation only).
 
-## 4. AUV parameters used in the basin
+## 4. Sensor positions
 
-The `Submarine` prefab is sized like the real AUV (CAD: about 0.61 m long, 0.10 m tube diameter). The visual model is still the placeholder cylinder; the CAD model will replace it.
+Positions in the local axes of the `RobotFish` prefab (forward = −X, up = +Y, right = +Z; origin = center of the hull tube). The physical model of the robot is described in [RobotFish_Model.md](RobotFish_Model.md).
 
-| Parameter | Value | Note |
+| Sensor | Position [m] | Source |
 | --- | --- | --- |
-| Hull | 0.61 m × Ø 0.10 m | from the CAD assembly |
-| Mass | 5 kg | estimate; replace with the measured mass |
-| `thrustForce` | 5 N | cruise speed ≈ T / (m · damping) = 0.4 m/s |
-| `rudderTorque` | 0.2 N·m | turn rate ≈ 30°/s |
-| `maxPitchShift` | 0.03 m | sliding mass travel |
-| `submersionRange` | 0.1 m | about the hull diameter (new field of `SubmarinePhysics`, default 0.2 m as before) |
+| RGB camera | (−0.215, 0, 0), inside the front dome | CAD |
+| IMU + magnetometer | (−0.014, 0.015, 0), Navigator board | CAD |
+| Pressure sensor | (0.21, 0.03, 0), rear cap | not in the CAD, estimate |
+| GNSS antenna | (0, 0.07, 0), 15 mm above the top of the tube | not in the CAD, estimate |
 
 ## 5. Running with ROS 2
 
@@ -119,7 +117,7 @@ ros2 run rqt_image_view rqt_image_view /camera/image_raw
 
 ## 6. Verification
 
-End-to-end test (Basin_Grid scene, ROS 2 Jazzy, ROS-TCP-Endpoint 0.7.0). The AUV was driven by the test: 5 s at rest, 5 s at cruise speed, 2 s turning right, then minimum ballast so that it rises to the surface.
+End-to-end test (Basin_Grid scene, ROS 2 Jazzy, ROS-TCP-Endpoint 0.7.0), made with the first AUV model (before the robot fish model; the sensors are the same). The AUV was driven by the test: 5 s at rest, 5 s at cruise speed, 2 s turning right, then minimum ballast so that it rises to the surface.
 
 | Topic | Received | Check |
 | --- | --- | --- |

@@ -72,7 +72,7 @@ Legend: L = `length` = 20 (Z), W = `width` = 12 (X), D = `depth` = 6 (Y) and t =
 - the **`WaterVolume`** child has a `BoxCollider` with `isTrigger = true`, sized `width × waterLevel × length` (12 × 5.5 × 20 m), from the floor up to the surface;
 - it is on the **Ignore Raycast** layer, so it does not block the rays of future sensors (LiDAR, camera).
 
-**Generic buoyancy and drag (`SimpleBuoyancy.cs`, requires a Rigidbody).** The AUV uses its own buoyancy model (`SubmarinePhysics`, see 3.7); `SimpleBuoyancy` is available for passive bodies (buoys, boxes, props):
+**Generic buoyancy and drag (`SimpleBuoyancy.cs`, requires a Rigidbody).** The robot fish uses its own buoyancy model (`RobotFishPhysics`, see 3.7); `SimpleBuoyancy` is available for passive bodies (buoys, boxes, props):
 - entering and leaving the water are detected with trigger events (`OnTriggerEnter/Exit`), compared against the basin's `WaterCollider`;
 - buoyancy = **ρ · V · g · submerged fraction**, with ρ = 1000 kg/m³;
 - the submerged fraction is `(surface − bottom of the body) / body height`, computed from the collider `bounds`;
@@ -110,7 +110,7 @@ HLSL shader for URP, with main light, received and cast shadows, fog, and `Shado
 Each scene contains:
 - a **directional light** with soft shadows, the default sky and three-color ambient light (no lightmap baking needed);
 - a **camera** with `SimulationCamera` (follows the AUV) and `UnderwaterEffect`;
-- the **AUV** (`Submarine` prefab, see 3.7) at (0, 3, −6), heading +Z, with `GroundTruthLogger`.
+- the **robot fish** (`RobotFish` prefab, see 3.7) at (0, 3, −6), heading +Z, with `GroundTruthLogger`.
 
 Both scenes are in the **Build Settings**, and any change to the prefab applies to both.
 
@@ -126,24 +126,24 @@ Both scenes are in the **Build Settings**, and any change to the prefab applies 
 - **File:** the folder is configurable (`outputFolder`; empty = `<project>/GroundTruthLogs` in the editor). The file name contains **the scene name** and the date/time, for example `groundtruth_Basin_Grid_20261023_111226.csv`.
 - **Control:** context-menu items **Start logging / Stop logging** on the component.
 
-### 3.7 AUV integration
+### 3.7 Robot fish integration
 
-The AUV comes from `Assets/AUV/` (`SubmarinePhysics.cs`): vertex-based buoyancy with ballast, mass shifting for pitch, fin thrust and rudder torque. In the basin scenes it is used through the **`Submarine` prefab** (`Assets/AUV/Prefabs/Submarine.prefab`), so both scenes share the same robot.
+The robot is the **`RobotFish` prefab** (`Assets/AUV/Prefabs/RobotFish.prefab`), used by both basin scenes. Its physics (`RobotFishPhysics`: mass from the CAD, buoyancy over the real displaced volume, water drag, sliding mass, tail and dorsal fins) is described in [RobotFish_Model.md](RobotFish_Model.md).
 
-- **`SubmarineWaterLevelSync`** (`Assets/AUV/Scripts/`) copies the basin water surface height (`TestBasin.WaterSurfaceY`, 5.5 m) into `SubmarinePhysics.waterLevel` every physics step, so the water height is defined only in the basin.
-- **Size and mass** of the prefab follow the real AUV (0.61 m × Ø 0.10 m, 5 kg estimate), with thrust and rudder tuned for that size; see [AUV_Sensors.md](AUV_Sensors.md#4-auv-parameters-used-in-the-basin).
+- **Water level:** `RobotFishPhysics` reads the basin water surface height (`TestBasin.WaterSurfaceY`, 5.5 m) directly, so the water height is defined only in the basin.
 - **Sensors** (RGB camera, INS with magnetometer, pressure, GNSS) are mounted on the prefab and publish to ROS 2; see [AUV_Sensors.md](AUV_Sensors.md).
-- **`GroundTruthLogger`** records the AUV pose and travelled distance.
-- **`SimulationCamera`** follows the AUV from behind (`targetLocalForward = (−1, 0, 0)`, the AUV moves along its local −X axis). **C** switches to a free camera that only moves while the right mouse button is held, so the keyboard keeps driving the AUV.
+- **`GroundTruthLogger`** records the robot pose and travelled distance.
+- **`SimulationCamera`** follows the robot from behind (`targetLocalForward = (−1, 0, 0)`, the robot moves along its local −X axis). **C** switches to a free camera that only moves while the right mouse button is held, so the keyboard keeps driving the robot.
+- The original AUV model (`SubmarinePhysics.cs`, scene `Assets/AUV/Scenes/Submarine_model.unity`) is unchanged and no longer used in the basin.
 
-AUV controls (from `SubmarinePhysics`):
+Robot controls (from `RobotFishPhysics`):
 
 | Key | Action |
 | --- | --- |
-| Space | fin thrust |
-| A / D | rudder (turn left / right) |
-| W / S | shift the mass forward / backward (pitch) |
-| Q or Shift / E or Ctrl | ballast: less / more buoyant |
+| Space | temporary thrust (until the tail flapping model) |
+| A / D | tail fin (turn left / right; only while moving) |
+| W / S | sliding mass forward / backward (nose down / up) |
+| Q or Shift / E or Ctrl | test ballast: heavier / lighter (**simulation only**, the real robot has no ballast) |
 
 ## 4. Verification
 
@@ -159,7 +159,7 @@ Both scenes were checked by measuring the generated pieces and by running **15 s
 | Basin material | Basin_Grid | Basin_Plain |
 | BasinGrid shader | compiles without errors | — |
 
-Play-mode test with the AUV and its sensors (Basin_Grid, ROS-TCP-Endpoint running; the test drives the AUV directly):
+Play-mode test with the first AUV model and its sensors (Basin_Grid, ROS-TCP-Endpoint running; the test drives the AUV directly); the robot fish model is verified in [RobotFish_Model.md](RobotFish_Model.md#4-verification):
 - `SubmarinePhysics.waterLevel` = 5.500, synced from the basin;
 - 0–5 s at rest: the AUV stays at y = 3.0 m (neutral buoyancy);
 - 5–10 s at cruise speed (0.4 m/s): 1.9 m along +Z; 10–12 s: right turn;
@@ -187,7 +187,7 @@ A video of the simulation is available in `media/basin_simulation.mp4`.
 2. In the Project window, open `Assets/TestBasin/Scenes/Basin_Grid` (with grid) or `Basin_NoGrid` (without grid).
 3. Press **▶ Play** and drive the AUV with the keys of section 3.7. The camera follows it; below 5.5 m inside the basin, the underwater fog turns on.
 4. Press **C** for the free camera: hold the **right mouse button** and use **WASD**, **Q/E** (down/up) and **Shift** (faster). Press **C** again to follow the AUV.
-5. To test buoyancy: change the AUV ballast with **Q/E** and watch it rise or sink; `SubmarinePhysics` parameters are on the `Submarine` prefab.
+5. To test buoyancy: change the test ballast with **Q/E** (simulation only) and watch the robot rise or sink, or set `Buoyancy Trim Percent` on `RobotFish` (e.g. 2 = floats); `RobotFishPhysics` parameters are on the `RobotFish` prefab.
 6. When leaving Play mode, the Console prints the path of the CSV file, saved in `GroundTruthLogs/`.
 7. To change the basin, edit the `TestBasin` parameters on the prefab; the pieces regenerate automatically.
 
@@ -202,8 +202,8 @@ A video of the simulation is available in `media/basin_simulation.mp4`.
 ## 6. Limitations and next steps
 
 - **Submerged fraction:** estimated with the world-axis-aligned bounding box, which is an approximation for a tilted body. Next step: sample points inside the hull volume, as in exercise 4 of the course handout ("Floating Cube").
-- **AUV physics (slide 14):** fin **lift** is not modeled yet (the rudder is a pure torque) and the drag is a simple damping.
-- **Sensors (slide 15):** RGB camera, INS, pressure and GNSS. The publishers from exercises 7–9 (`CameraPublisher`, `ImuPublisher`, `GnssPublisher`) can be reused, and the pressure sensor added as p = p_atm + ρ·g·(surface − y).
+- **Robot physics (slide 14):** see the limitations of the robot fish model in [RobotFish_Model.md](RobotFish_Model.md#6-limitations) (tail flapping propulsion not modeled yet, no sideways added mass).
+- **Sensors (slide 15):** RGB camera, INS, pressure and GNSS are on the AUV, see [AUV_Sensors.md](AUV_Sensors.md).
 - **AUV model:** replace the cylinder with the CAD model (`Assembly.obj`), keeping a simple collider on top.
 - **AUV tuning:** the thrust is applied on the AUV axis, 5 cm above the center of mass, so full thrust pitches the nose down by about 6° (sin θ = T / (m·g)); the mass (5 kg) is an estimate to be replaced by the measured value.
 - **Water:** the surface is flat and static, which fits an indoor pool.
