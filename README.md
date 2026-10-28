@@ -17,14 +17,27 @@ Open the project with Unity Hub (*Add project from disk*), load one of the scene
 
 The AUV carries an RGB camera, an INS (gyroscope, accelerometer, magnetometer), a pressure sensor and a GNSS receiver (fix only at the surface). They publish through the ROS-TCP-Connector:
 
-| Topic | Message |
-| --- | --- |
-| `/camera/compressed_image` | `sensor_msgs/CompressedImage` (JPEG) |
-| `/imu/data`, `/imu/mag` | `sensor_msgs/Imu`, `sensor_msgs/MagneticField` |
-| `/pressure`, `/depth` | `sensor_msgs/FluidPressure`, `std_msgs/Float64` |
-| `/gnss/fix` | `sensor_msgs/NavSatFix` |
+| Topic                        | Message                                             |
+| ---------------------------- | --------------------------------------------------- |
+| `/camera/compressed_image` | `sensor_msgs/CompressedImage` (JPEG)              |
+| `/imu/data`, `/imu/mag`  | `sensor_msgs/Imu`, `sensor_msgs/MagneticField`  |
+| `/pressure`, `/depth`    | `sensor_msgs/FluidPressure`, `std_msgs/Float64` |
+| `/gnss/fix`                | `sensor_msgs/NavSatFix`                           |
 
 Start the [ROS-TCP-Endpoint](https://github.com/Unity-Technologies/ROS-TCP-Endpoint/tree/main-ros2) (`ros2 run ros_tcp_endpoint default_server_endpoint --ros-args -p ROS_IP:=127.0.0.1`), then press Play. See [Docs/AUV_Sensors.md](Docs/AUV_Sensors.md).
+
+## Navigation, guidance and control
+
+The AUV actuators can be commanded from ROS 2 (`std_msgs/Float64`, normalized to [-1, 1]):
+
+| Topic            | Actuator                                 |
+| ---------------- | ---------------------------------------- |
+| `/cmd/thrust`  | thruster (+ forward, - reverse)          |
+| `/cmd/rudder`  | rudder (+ turn right)                    |
+| `/cmd/pitch`   | sliding mass (+ nose down)               |
+| `/cmd/ballast` | ballast pump (+ fill/sink, - empty/rise) |
+
+Without commands for 0.5 s the actuators stop and the keyboard takes over again. See [Docs/GNC.md](Docs/GNC.md) for the architecture and the status of the GNC work.
 
 ## Project structure
 
@@ -36,10 +49,3 @@ Assets/
 ├── AUV/         micro-AUV (scripts, materials, scenes)
 └── Settings/    URP render pipeline settings
 ```
-
-## Workflow
-
-- Open the project with **Unity 6000.6.5f1**.
-- Work on a branch and open a pull request to `main`; do not push directly to `main`.
-- Edit scenes and prefabs inside Unity; rename and move assets inside Unity so their `.meta` files follow.
-- On Linux, Unity adds `com.unity.sdk.linux-x86_64` and `com.unity.toolchain.linux-x86_64-linux` to `Packages/manifest.json` when the project opens. Do not commit these lines: `git checkout -- Packages/` (with Unity closed).

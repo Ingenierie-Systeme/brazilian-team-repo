@@ -23,6 +23,24 @@ public class SubmarinePhysics : MonoBehaviour
     [Header("Ballast Control")]
     public float ballastRate = 0.25f;
 
+    // Actuator commands, normalized to [-1, 1]. With externalControl off they are written from the
+    // keyboard every physics step; with it on, another component (e.g. ActuatorCommandSubscriber)
+    // writes them and the keyboard is ignored.
+    [Header("Actuator Commands")]
+    [Tooltip("When on, the commands below come from another component (e.g. ROS) instead of the keyboard.")]
+    public bool externalControl = false;
+    [Tooltip("Fraction of thrustForce. Positive = forward, negative = reverse.")]
+    [Range(-1f, 1f)] public float thrustCommand = 0f;
+    [Tooltip("Fraction of rudderTorque. Positive = turn right (D key).")]
+    [Range(-1f, 1f)] public float rudderCommand = 0f;
+    [Tooltip("Target sliding-mass position as a fraction of maxPitchShift. Positive = nose down (W key).")]
+    [Range(-1f, 1f)] public float pitchCommand = 0f;
+    [Tooltip("Ballast pump speed as a fraction of ballastRate. Positive = fill, the AUV gets heavier (Q key).")]
+    [Range(-1f, 1f)] public float ballastCommand = 0f;
+
+    // Current ballast fill (0 = empty/light, 1 = full/heavy), read-only for other components.
+    public float BallastLevel => ballastLevel;
+
     private Rigidbody rb;
     private MeshFilter submarineMesh;
     private Transform meshTransform;
@@ -61,6 +79,7 @@ public class SubmarinePhysics : MonoBehaviour
     {
         if (rb == null) return;
 
+        if (!externalControl) ReadKeyboard();
         UpdateBallast();
         ApplyBuoyancyAndDamping();
         UpdatePitchMassShift();
@@ -78,14 +97,26 @@ public class SubmarinePhysics : MonoBehaviour
         return transform.TransformDirection(GetLocalForward());
     }
 
-    private void UpdateBallast()
+    // Keyboard → commands (same keys and values as before: 0 or ±1)
+    private void ReadKeyboard()
     {
+        thrustCommand = rudderCommand = pitchCommand = ballastCommand = 0f;
         if (Keyboard.current == null) return;
 
-        float input = 0f;
-        if (Keyboard.current.qKey.isPressed || Keyboard.current.leftShiftKey.isPressed) input += 1f;
-        if (Keyboard.current.eKey.isPressed || Keyboard.current.leftCtrlKey.isPressed) input -= 1f;
+        if (Keyboard.current.qKey.isPressed || Keyboard.current.leftShiftKey.isPressed) ballastCommand += 1f;
+        if (Keyboard.current.eKey.isPressed || Keyboard.current.leftCtrlKey.isPressed) ballastCommand -= 1f;
 
+        if (Keyboard.current.wKey.isPressed || Keyboard.current.upArrowKey.isPressed) pitchCommand = 1f;
+        if (Keyboard.current.sKey.isPressed || Keyboard.current.downArrowKey.isPressed) pitchCommand = -1f;
+
+        if (Keyboard.current.spaceKey.isPressed) thrustCommand = 1f;
+        if (Keyboard.current.dKey.isPressed || Keyboard.current.rightArrowKey.isPressed) rudderCommand = 1f;
+        if (Keyboard.current.aKey.isPressed || Keyboard.current.leftArrowKey.isPressed) rudderCommand = -1f;
+    }
+
+    private void UpdateBallast()
+    {
+        float input = Mathf.Clamp(ballastCommand, -1f, 1f);
         ballastLevel = Mathf.Clamp01(ballastLevel + input * ballastRate * Time.fixedDeltaTime);
     }
 
@@ -121,31 +152,17 @@ public class SubmarinePhysics : MonoBehaviour
 
     private void UpdatePitchMassShift()
     {
-        float input = 0f;
-        if (Keyboard.current != null)
-        {
-            if (Keyboard.current.wKey.isPressed || Keyboard.current.upArrowKey.isPressed) input = 1f;
-            if (Keyboard.current.sKey.isPressed || Keyboard.current.downArrowKey.isPressed) input = -1f;
-        }
-
-        float target = input * maxPitchShift;
+        float target = Mathf.Clamp(pitchCommand, -1f, 1f) * maxPitchShift;
         currentShift = Mathf.MoveTowards(currentShift, target, pitchShiftSpeed * Time.fixedDeltaTime);
         rb.centerOfMass = baseCenterOfMass + GetLocalForward() * currentShift;
     }
 
     private void ApplyPropulsionAndSteering()
     {
-        float thrust = 0f;
-        float steer = 0f;
+        float thrust = Mathf.Clamp(thrustCommand, -1f, 1f);
+        float steer = Mathf.Clamp(rudderCommand, -1f, 1f);
 
-        if (Keyboard.current != null)
-        {
-            if (Keyboard.current.spaceKey.isPressed) thrust = 1f;
-            if (Keyboard.current.dKey.isPressed || Keyboard.current.rightArrowKey.isPressed) steer = 1f;
-            if (Keyboard.current.aKey.isPressed || Keyboard.current.leftArrowKey.isPressed) steer = -1f;
-        }
-
-        if (thrust > 0f)
+        if (Mathf.Abs(thrust) > 0.001f)
         {
             Vector3 force = GetWorldForward() * (thrustForce * thrust);
             rb.AddForceAtPosition(force, finPoint.position, ForceMode.Force);
