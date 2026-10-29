@@ -140,8 +140,8 @@ Robot controls (from `RobotFishPhysics`):
 
 | Key | Action |
 | --- | --- |
-| Space | temporary thrust (until the tail flapping model) |
-| A / D | tail fin (turn left / right; only while moving) |
+| Space | swim: the tail fin flaps (1.5 Hz, 30°) |
+| A / D | turn left / right: the fin flaps around a 30° bias (only while swimming) |
 | W / S | moving mass forward / backward (nose down / up) |
 | Q or Shift / E or Ctrl | test ballast: heavier / lighter (**simulation only**, the real robot has no ballast) |
 

@@ -54,8 +54,8 @@ moving_mass:
 tail_servo:
   speed_s_per_60deg: 0.12
   torque_kgf_cm: 29.0
-  max_angle_deg: 30             # ± fin angle used (estimate, limited by the fin connector)
-  status: datasheet
+  max_angle_deg: 60             # ± mechanical limit of the fin (team)
+  status: speed and torque from the datasheet, angle from the team
 
 # Hydrodynamics (literature values for a slender cylinder and small low-aspect-ratio fins).
 hydrodynamics:

@@ -101,7 +101,7 @@ Hull added mass sideways and vertically: 3.80 kg (not used in the simulation, se
 | Center of pressure (¼ chord) | 104 mm behind the axis, height -17 mm | CAD (0.0, 170.0, 85.3) mm |
 | Deflection in the exported CAD | 10.4° | – |
 
-Tail servo: max angle ±30°, speed 500°/s, torque 2.84 N·m (D955TW at 7.4 V).
+Tail servo: max angle ±60°, speed 500°/s, torque 2.84 N·m (D955TW at 7.4 V).
 
 ## Values for the Unity simulation (`RobotFishPhysics`)
 
@@ -116,4 +116,4 @@ Tail servo: max angle ±30°, speed 500°/s, torque 2.84 N·m (D955TW at 7.4 V).
 | tail fin center of pressure | 0.104 m behind the hinge, height -0.017 m |
 | `tailFinArea`, `dorsalFinArea` | 0.0192 m², 0.0042 m² |
 | `dorsalFinCenter` (Unity) | (170.0, 85.3, -0.0) mm |
-| `tailServoSpeed`, `maxTailAngle` | 500°/s, 30° |
+| `tailServoSpeed`, `maxTailAngle` | 500°/s, 60° |

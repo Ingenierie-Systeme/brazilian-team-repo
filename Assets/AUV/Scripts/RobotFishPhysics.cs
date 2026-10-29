@@ -10,15 +10,22 @@ using UnityEngine.InputSystem;                        // keyboard (new Input Sys
 // The origin is the center of the hull tube.
 //
 // Each physics step (FixedUpdate):
-//   1. actuators: keyboard or external commands → moving mass position, tail fin angle, temporary thrust;
+//   1. actuators: keyboard or external commands → tail oscillator and servo, moving mass position;
 //   2. mass properties: structure + moving mass (its position changes the center of mass and the inertia);
 //   3. buoyancy: computed over points that fill the real displaced volume (hull, dome, parts outside);
 //   4. hull drag: quadratic, small along the hull, large across it ("strip theory": the hull is cut into
 //      slices, each one sees its own water velocity, so the drag also resists rotations);
-//   5. fins: tail fin (moved by the servo) and dorsal fin (fixed) produce a force normal to their plate.
+//   5. fins: the flapping tail fin gives the propulsion and the steering (section 6), the dorsal fin (fixed)
+//      produces a force normal to its plate.
 //
-// Not modeled (see Docs/RobotFish_Model.md): sideways/vertical added mass of the hull, the tail flapping
-// propulsion (step 1c; until then a temporary thrust force moves the robot), waves and currents.
+// Two propulsion models (field `propulsion`):
+//   - TailFlapping (default): the servo swings the tail fin as bias + amplitude·sin(2π·frequency·t); the
+//     forces of the water on the moving fin push the robot forward and turn it (section 6);
+//   - SimpleThrust (tests): the fin is a rudder held at a fixed angle and a forward force replaces the
+//     flapping (the model used before the flapping tail).
+//
+// Not modeled (see Docs/RobotFish_Model.md): sideways/vertical added mass of the hull in translation,
+// waves and currents.
 [RequireComponent(typeof(Rigidbody))]
 public class RobotFishPhysics : MonoBehaviour
 {
@@ -80,14 +87,26 @@ public class RobotFishPhysics : MonoBehaviour
     [Header("Tail fin (moved by the servo)")]
     [Tooltip("Vertical axis of the tail servo, local axes [m].")]
     public Vector3 tailHinge = new Vector3(0.325f, 0.0062f, 0f);
-    [Tooltip("Distance from the servo axis to the center of pressure of the fin (¼ chord) [m].")]
+    [Tooltip("Distance from the servo axis to the center of pressure of the fin (¼ chord) [m] (SimpleThrust model).")]
     public float tailPressureDistance = 0.104f;
     [Tooltip("Height of the center of the fin [m, local Y].")]
     public float tailFinHeight = -0.017f;
     public FinProperties tailFin = new FinProperties { area = 0.0192f, liftSlope = 1.2f, stallAngle = 25f };
-    [Tooltip("Fin angle at full command [deg] and servo speed [deg/s] (Hitec D955TW at 7.4 V).")]
-    public float maxTailAngle = 30f;
+    [Tooltip("Leading and trailing edges of the fin, distance behind the servo axis [m], and fin height (span) [m] (CAD: 160 × 120 mm plate).")]
+    public float tailLeadingEdge = 0.064f;
+    public float tailTrailingEdge = 0.224f;
+    public float tailFinSpan = 0.120f;
+    [Tooltip("Mechanical limit of the fin angle [deg] (±60°, team).")]
+    public float maxTailAngle = 60f;
+    [Tooltip("Fin angle at full rudder command [deg]: fixed angle (SimpleThrust), bias of the flapping (TailFlapping).")]
+    public float rudderAngle = 30f;
+    [Tooltip("Servo speed [deg/s] and torque [N·m] (Hitec D955TW at 7.4 V: 0.12 s/60°, 29 kgf·cm).")]
     public float tailServoSpeed = 500f;
+    public float tailServoTorque = 2.84f;
+    [Tooltip("Position gain of the servo [1/s]: speed command per degree of error (estimate, sets how closely the servo follows).")]
+    public float tailServoGain = 40f;
+    [Tooltip("Inertia of the moving tail parts (hub, arm, fin) about the servo axis, without the water [kg·m²] (estimate).")]
+    public float tailFinInertia = 0.001f;
     [Tooltip("Visual of the fin, rotated about its local Y axis (optional).")]
     public Transform tailFinPivot;
 
@@ -109,10 +128,34 @@ public class RobotFishPhysics : MonoBehaviour
     [Tooltip("At start, sets the rest position so that the robot rests level when submerged (moving mass right under the center of buoyancy), as an operator would do. Clamped to the travel.")]
     public bool levelAtRest = true;
 
-    // ------------------------------------------------------------------ temporary propulsion and test ballast
-    [Header("Temporary propulsion (replaced by the tail flapping in step 1c)")]
+    // ------------------------------------------------------------------ propulsion
+    public enum PropulsionModel { TailFlapping, SimpleThrust }
+
+    [Header("Propulsion")]
+    [Tooltip("TailFlapping: the flapping tail fin swims the robot (real robot). SimpleThrust: fixed rudder + forward force (tests).")]
+    public PropulsionModel propulsion = PropulsionModel.TailFlapping;
+
+    [Header("Tail flapping")]
+    [Tooltip("Flapping frequency at full tail_frequency command [Hz].")]
+    public float maxTailFrequency = 3f;
+    [Tooltip("Flapping used by the thrust command (Space key, /cmd/thrust): frequency [Hz] and amplitude at full command [deg].")]
+    public float cruiseFrequency = 1.5f;
+    public float cruiseAmplitude = 30f;
+    [Tooltip("Added mass of the fin as a fraction of the 2D value ρ·π·span²/4 per unit chord (3D effects of the low aspect ratio fin, estimate).")]
+    public float addedMassCoefficient = 0.7f;
+    [Tooltip("Drag coefficient of the fin moving across its plate (flat plate).")]
+    public float finCrossflowDrag = 1.2f;
+    [Tooltip("Adds the water carried by the fin to the yaw inertia of the robot (off: see FinAddedYawInertia).")]
+    public bool finAddedYawInertia = false;
+    [Tooltip("Number of chordwise strips of the fin, and of rows over its height (the rows see the roll of the robot).")]
+    public int tailFinStrips = 8;
+    public int tailFinRows = 3;
+
+    [Header("Simple thrust (SimpleThrust model only)")]
     [Tooltip("Forward force at full thrust command [N]; 0.3 N gives about 0.3 m/s.")]
     public float temporaryThrust = 0.3f;
+
+    // ------------------------------------------------------------------ test ballast
 
     [Header("Test ballast (SIMULATION ONLY, the real robot has none)")]
     [Tooltip("Largest change of buoyancy the test ballast can make, as a fraction of the displaced volume.")]
@@ -124,10 +167,14 @@ public class RobotFishPhysics : MonoBehaviour
     [Header("Actuator commands (normalized to [-1, 1])")]
     [Tooltip("When on, the commands come from another component (e.g. ROS) instead of the keyboard.")]
     public bool externalControl = false;
-    [Tooltip("Temporary thrust. Positive = forward (Space).")]
+    [Tooltip("Swim forward (Space). TailFlapping: flapping at cruiseFrequency with thrust × cruiseAmplitude (negative = 0, a fish cannot swim backward). SimpleThrust: forward force.")]
     [Range(-1f, 1f)] public float thrustCommand = 0f;
-    [Tooltip("Tail fin angle as a fraction of maxTailAngle. Positive = turn right (D).")]
+    [Tooltip("Turn. Fin bias (TailFlapping) or fin angle (SimpleThrust) as a fraction of rudderAngle. Positive = turn right (D).")]
     [Range(-1f, 1f)] public float rudderCommand = 0f;
+    [Tooltip("TailFlapping, direct tail commands (used instead of thrust/rudder when any of them is not 0): frequency as a fraction of maxTailFrequency, amplitude and bias as fractions of maxTailAngle.")]
+    [Range(0f, 1f)] public float tailFrequencyCommand = 0f;
+    [Range(0f, 1f)] public float tailAmplitudeCommand = 0f;
+    [Range(-1f, 1f)] public float tailBiasCommand = 0f;
     [Tooltip("Moving mass target: 0 = rest position, +1 = front end (nose down, W), −1 = back end (nose up, S).")]
     [Range(-1f, 1f)] public float pitchCommand = 0f;
     [Tooltip("SIMULATION ONLY. Test ballast pump. Positive = fill, heavier (Q).")]
@@ -142,6 +189,13 @@ public class RobotFishPhysics : MonoBehaviour
     public float buoyancyForce;                       // [N]
     public float forwardSpeed;                        // [m/s]
     public float finAngle;                            // current tail fin angle [deg], + = turns right
+    public float finTarget;                           // angle asked to the servo [deg]
+    public float tailFrequency;                       // flapping actually commanded: frequency [Hz],
+    public float tailAmplitude;                       // amplitude [deg]
+    public float tailBias;                            // and bias [deg]
+    public float tailThrust;                          // forward force of the tail, averaged over about 1 s [N]
+    public float tailHingeMoment;                     // largest moment of the water on the fin about the servo axis, last ~1 s [N·m]
+    public float strouhal;                            // f · (trailing edge peak-to-peak) / speed (fish: 0.2–0.4)
     public float movingMassPosition;                  // position along the tube axis [m], + = forward
     public float ballastAdjust;                       // test ballast [fraction of the volume], + = heavier
     public Vector3 centerOfBuoyancy;                  // local axes [m], with the robot fully submerged
@@ -169,6 +223,10 @@ public class RobotFishPhysics : MonoBehaviour
     private Vector3[] sliceCenters;                   // hull slices for the crossflow drag (local)
     private float[] sliceAreas;                       // diameter × length of each slice [m²]
     private float frontalArea;                        // [m²]
+    private float[] stripRadii;                       // tail fin strips: distance from the servo axis [m]
+    private float stripLength;                        // chordwise length of one strip [m]
+    private float finMassPerLength;                   // added mass of the fin per unit chord [kg/m]
+    private float tailAddedInertia;                   // added inertia of the fin about the servo axis [kg·m²]
 
     // Builds the buoyancy points and the drag slices, sets the mass properties
     void Start()
@@ -179,6 +237,7 @@ public class RobotFishPhysics : MonoBehaviour
         rb.angularDamping = 0f;
         BuildBuoyancyPoints();
         BuildDragSlices();
+        BuildTailStrips();
         mass = structureMass + movingMass;
         buoyancyPercent = (WaterDensity * displacedVolume / mass - 1f) * 100f;
         if (levelAtRest && movingMass > 1e-4f)        // CoM under the CoB: structure·x_s + moving·x_m = mass·x_B
@@ -202,7 +261,28 @@ public class RobotFishPhysics : MonoBehaviour
         Vector3 com = (structureMass * structureCenterOfMass + movingMass * movingPoint) / mass;
         rb.centerOfMass = com;
         // parallel-axis theorem: each part's inertia about the common center of mass (diagonal terms)
-        rb.inertiaTensor = structureInertia + ParallelAxis(structureMass, structureCenterOfMass - com) + ParallelAxis(movingMass, movingPoint - com);
+        Vector3 inertia = structureInertia + ParallelAxis(structureMass, structureCenterOfMass - com) + ParallelAxis(movingMass, movingPoint - com);
+        if (propulsion == PropulsionModel.TailFlapping && finAddedYawInertia) inertia.y += FinAddedYawInertia(com);
+        rb.inertiaTensor = inertia;
+    }
+
+    // Water carried by the tail fin when the robot yaws (the fin, far behind the center of mass, moves across
+    // its plate). It is part of the inertia instead of a force computed from the robot's own acceleration,
+    // which would be unstable (this added inertia is larger than the inertia of the robot itself).
+    // Off by default (finAddedYawInertia): with it, the model dives while swimming. The larger yaw inertia changes the
+    // phase between the roll oscillation (the side force of the fin acts below the center of mass) and the side
+    // force, which then gets a steady vertical component at the tail. This depends on roll dynamics that the model
+    // does not represent well (roll damping and added inertia of the fins), so the simpler, stable option is
+    // the default; the price is a yaw oscillation somewhat larger than with the added inertia.
+    float FinAddedYawInertia(Vector3 com)
+    {
+        float sum = 0f;
+        foreach (float r in stripRadii)
+        {
+            float dx = tailHinge.x + r - com.x, dz = tailHinge.z - com.z;
+            sum += finMassPerLength * stripLength * (dx * dx + dz * dz);
+        }
+        return sum;
     }
 
     static Vector3 ParallelAxis(float m, Vector3 d) =>
@@ -215,9 +295,13 @@ public class RobotFishPhysics : MonoBehaviour
         UpdateActuators(dt);
         ApplyBuoyancy();
         ApplyHullDrag();
-        ApplyFin(TailFinFrame(), tailFin);
+        if (propulsion == PropulsionModel.TailFlapping) ApplyFlappingTail(dt);
+        else
+        {
+            ApplyFin(TailFinFrame(), tailFin);
+            ApplyTemporaryThrust();
+        }
         ApplyFin(new FinFrame { center = dorsalFinCenter, normal = Vector3.forward, swingSpeed = 0f }, dorsalFin);
-        ApplyTemporaryThrust();
     }
 
     // ================================================================== 1. actuators
@@ -225,6 +309,7 @@ public class RobotFishPhysics : MonoBehaviour
     void ReadKeyboard()
     {
         thrustCommand = rudderCommand = pitchCommand = ballastCommand = 0f;
+        tailFrequencyCommand = tailAmplitudeCommand = tailBiasCommand = 0f;
         var k = Keyboard.current;
         if (k == null) return;
         if (k.spaceKey.isPressed) thrustCommand = 1f;
@@ -237,14 +322,13 @@ public class RobotFishPhysics : MonoBehaviour
     }
 
     private float finRate;                            // fin angular speed [rad/s], used for the swing velocity
+    private float finAcceleration;                    // fin angular acceleration [rad/s²]
+    private float tailPhase;                          // phase of the flapping oscillator [rad]
 
     // The servos move toward their targets at a limited speed
     void UpdateActuators(float dt)
     {
-        // tail servo
-        float previous = finAngle;
-        finAngle = Mathf.MoveTowards(finAngle, Mathf.Clamp(rudderCommand, -1f, 1f) * maxTailAngle, tailServoSpeed * dt);
-        finRate = (finAngle - previous) * Mathf.Deg2Rad / dt;
+        UpdateTail(dt);
         if (tailFinPivot != null) tailFinPivot.localRotation = Quaternion.Euler(0f, -finAngle, 0f); // + angle: trailing edge to the right (+Z)
 
         // moving mass: 0 = rest position, +1 = front end, −1 = back end; it moves at a limited speed
@@ -256,6 +340,67 @@ public class RobotFishPhysics : MonoBehaviour
 
         // test ballast (simulation only)
         ballastAdjust = Mathf.Clamp(ballastAdjust + Mathf.Clamp(ballastCommand, -1f, 1f) * ballastRate * dt, -ballastRange, ballastRange);
+    }
+
+    // Tail: commands → angle asked to the servo → servo motion.
+    void UpdateTail(float dt)
+    {
+        if (propulsion == PropulsionModel.SimpleThrust)
+        {
+            // fixed rudder: the servo goes to the commanded angle at its rated speed
+            tailFrequency = tailAmplitude = 0f;
+            tailBias = finTarget = Mathf.Clamp(rudderCommand, -1f, 1f) * rudderAngle;
+            float previous = finAngle;
+            finAngle = Mathf.MoveTowards(finAngle, finTarget, tailServoSpeed * dt);
+            finRate = (finAngle - previous) * Mathf.Deg2Rad / dt;
+            finAcceleration = 0f;
+            return;
+        }
+
+        // oscillator: direct tail commands if any is set, otherwise the thrust/rudder shortcuts
+        if (tailFrequencyCommand != 0f || tailAmplitudeCommand != 0f || tailBiasCommand != 0f)
+        {
+            tailFrequency = Mathf.Clamp01(tailFrequencyCommand) * maxTailFrequency;
+            tailAmplitude = Mathf.Clamp01(tailAmplitudeCommand) * maxTailAngle;
+            tailBias = Mathf.Clamp(tailBiasCommand, -1f, 1f) * maxTailAngle;
+        }
+        else
+        {
+            float thrust = Mathf.Clamp01(thrustCommand);                  // no backward swimming
+            tailFrequency = thrust > 0f ? cruiseFrequency : 0f;
+            tailAmplitude = thrust * cruiseAmplitude;
+            tailBias = Mathf.Clamp(rudderCommand, -1f, 1f) * rudderAngle;
+        }
+        // the phase is integrated, so a change of frequency does not make the fin jump
+        tailPhase = Mathf.Repeat(tailPhase + 2f * Mathf.PI * tailFrequency * dt, 2f * Mathf.PI);
+        finTarget = Mathf.Clamp(tailBias + tailAmplitude * Mathf.Sin(tailPhase), -maxTailAngle, maxTailAngle);
+        ServoStep(dt);
+    }
+
+    // Servo: position loop limited by the rated speed and by the torque. The torque has to accelerate the fin
+    // and the water it carries (added inertia), so the servo cannot follow a fast and wide oscillation: the
+    // fin then lags and its amplitude drops, as on the real robot. The speed asked to the servo is the smallest of
+    //   gain × error            (proportional response),
+    //   √(2 · a_max · |error|)  (the fin can still stop at the target with the available acceleration),
+    //   tailServoSpeed          (rated speed),
+    // and the actual speed moves toward it at the largest acceleration a_max = torque / inertia.
+    void ServoStep(float dt)
+    {
+        float maxAcceleration = tailServoTorque / (tailFinInertia + tailAddedInertia) * Mathf.Rad2Deg;   // [deg/s²]
+        float error = finTarget - finAngle;                                                            // [deg]
+        float wanted = Mathf.Sign(error) * Mathf.Min(tailServoGain * Mathf.Abs(error),
+                                                     Mathf.Sqrt(2f * maxAcceleration * Mathf.Abs(error)),
+                                                     tailServoSpeed);
+        float rate = finRate * Mathf.Rad2Deg;                                                          // [deg/s]
+        float newRate = Mathf.MoveTowards(rate, wanted, maxAcceleration * dt);
+        finAngle += newRate * dt;
+        if (Mathf.Abs(finAngle) > maxTailAngle)                                                        // mechanical stop
+        {
+            finAngle = Mathf.Clamp(finAngle, -maxTailAngle, maxTailAngle);
+            newRate = 0f;
+        }
+        finAcceleration = (newRate - rate) * Mathf.Deg2Rad / dt;
+        finRate = newRate * Mathf.Deg2Rad;
     }
 
     void ApplyTemporaryThrust()
@@ -450,5 +595,94 @@ public class RobotFishPhysics : MonoBehaviour
         float cn = Mathf.Abs(alpha) < stall ? fin.liftSlope * alpha : 1.2f * Mathf.Sin(alpha);
         Vector3 f = -frame.normal * (0.5f * WaterDensity * fin.area * speed * speed * cn * wet);
         rb.AddForceAtPosition(transform.TransformDirection(f), p);
+    }
+
+    // ================================================================== 6. flapping tail
+    // The fin (rigid plate, chord from tailLeadingEdge to tailTrailingEdge behind the servo axis, height
+    // tailFinSpan) is cut into chordwise strips and into rows over its height. Each element has a normal velocity
+    // w through the water (robot motion + fin swing), and the water it pushes behaves like an added mass
+    // m' = C·ρ·π·span²/4 per unit chord (flat plate moving across itself), shared equally between the rows.
+    // The rows matter for the roll: when the robot rolls, the top and the bottom of the fin move sideways in
+    // opposite directions and the water resists it (roll damping). Forces of the water on the fin, after Lighthill's elongated-body theory
+    // (reactive part) with a resistive drag:
+    //   1. reactive, along the fin: −d/dt(m'·w·n) for each strip, keeping only the acceleration given by the
+    //      servo (the part due to the robot's own acceleration is the added inertia of UpdateMassProperties);
+    //   2. reactive, trailing edge (one point per row): the water set in motion leaves the fin there and forms the wake; the
+    //      momentum it takes away pushes the robot by F = m'·(w·u·n − ½·w²·τ) (u, w: velocity of the trailing
+    //      edge along the fin τ (toward the trailing edge) and across it n). This term gives the thrust: with
+    //      the robot at rest it is −½·m'·w²·τ, forward. With the fin held deflected while the robot moves, it
+    //      gives a side force (steering) and a drag;
+    //   3. resistive: crossflow drag of each element, −½·ρ·C_D·(span/rows)·Δr·|w|·w·n.
+    // These replace the quasi-steady fin force (which, for a flapping fin, gives drag instead of thrust).
+    void BuildTailStrips()
+    {
+        int n = Mathf.Max(1, tailFinStrips);
+        stripLength = (tailTrailingEdge - tailLeadingEdge) / n;
+        stripRadii = new float[n];
+        finMassPerLength = addedMassCoefficient * WaterDensity * Mathf.PI * tailFinSpan * tailFinSpan / 4f;
+        tailAddedInertia = 0f;
+        for (int i = 0; i < n; i++)
+        {
+            stripRadii[i] = tailLeadingEdge + (i + 0.5f) * stripLength;
+            tailAddedInertia += finMassPerLength * stripLength * stripRadii[i] * stripRadii[i];
+        }
+    }
+
+    void ApplyFlappingTail(float dt)
+    {
+        float a = finAngle * Mathf.Deg2Rad;
+        var tangent = new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a));             // along the chord, toward the trailing edge
+        var normal = new Vector3(-Mathf.Sin(a), 0f, Mathf.Cos(a));             // across the fin (+Z at 0°)
+        int rows = Mathf.Max(1, tailFinRows);
+        float rowHeight = tailFinSpan / rows;
+        float rowMass = finMassPerLength / rows;                                // added mass per unit chord of one row [kg/m]
+        float forward = 0f, moment = 0f;                                       // forward force [N], moment about the servo axis [N·m]
+
+        for (int j = 0; j < rows; j++)
+        {
+            var hinge = new Vector3(tailHinge.x, tailFinHeight - tailFinSpan / 2f + (j + 0.5f) * rowHeight, tailHinge.z);
+
+            // 1 + 3: strips of this row
+            foreach (float r in stripRadii)
+            {
+                float w = NormalVelocity(hinge + tangent * r, normal, r, rowHeight, out Vector3 p, out float wet, out _);
+                if (wet <= 0f) continue;
+                Vector3 f = -normal * (0.5f * WaterDensity * finCrossflowDrag * rowHeight * stripLength * Mathf.Abs(w) * w)
+                          - rowMass * stripLength * (r * finAcceleration * normal - w * finRate * tangent);
+                f *= wet;
+                rb.AddForceAtPosition(transform.TransformDirection(f), p);
+                forward -= f.x;                                                // forward = −X
+                moment += r * Vector3.Dot(f, normal);
+            }
+
+            // 2: trailing edge of this row
+            float wTe = NormalVelocity(hinge + tangent * tailTrailingEdge, normal, tailTrailingEdge, rowHeight, out Vector3 pTe, out float wetTe, out Vector3 vTe);
+            if (wetTe > 0f)
+            {
+                float u = Vector3.Dot(vTe, tangent);
+                Vector3 f = rowMass * (wTe * u * normal - 0.5f * wTe * wTe * tangent) * wetTe;
+                rb.AddForceAtPosition(transform.TransformDirection(f), pTe);
+                forward -= f.x;
+                moment += tailTrailingEdge * Vector3.Dot(f, normal);
+            }
+        }
+
+        // debug values
+        tailThrust += (forward - tailThrust) * Mathf.Min(1f, dt / 1f);                     // ~1 s average
+        tailHingeMoment = Mathf.Max(Mathf.Abs(moment), tailHingeMoment * (1f - dt));       // slowly decaying peak
+        strouhal = forwardSpeed > 0.05f
+            ? tailFrequency * 2f * tailTrailingEdge * Mathf.Sin(Mathf.Min(tailAmplitude, 90f) * Mathf.Deg2Rad) / forwardSpeed
+            : 0f;
+    }
+
+    // Velocity across the fin of a point of the fin at distance r from the servo axis (local axes):
+    // robot velocity at that point + swing of the fin. Also returns the world position, the wet fraction
+    // and the full local velocity.
+    float NormalVelocity(Vector3 local, Vector3 normal, float r, float height, out Vector3 world, out float wet, out Vector3 v)
+    {
+        world = transform.TransformPoint(local);
+        wet = Mathf.Clamp01((WaterLevel - world.y) / height + 0.5f);
+        v = transform.InverseTransformDirection(rb.GetPointVelocity(world)) + normal * (r * finRate);
+        return Vector3.Dot(v, normal);
     }
 }

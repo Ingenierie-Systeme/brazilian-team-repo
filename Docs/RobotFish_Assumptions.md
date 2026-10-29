@@ -16,8 +16,9 @@ The simulation of the robot fish relies on values that were not measured on the 
 | 2 | Buoyancy in the basin, for a given moving mass | – | Confirms the displaced volume and the mass together | In the basin, note how much of the robot stays out of the water, or add weight until it barely floats |
 | 3 | Weight of the moving mass in use | 100 g (team; adjustable) | Pitch authority and buoyancy | Weigh it |
 | 4 | Longitudinal position of the center of mass of the structure | 39 mm behind the tube center (estimate: the tail servo is heavy and at the rear) | Decides where the moving mass must be for the robot to be level | Balance the robot (without the moving mass) on a rod across the tube |
-| 5 | Maximum tail fin angle | ±30° | Turning and (step 1c) thrust | Command the servo to the ends |
-| 6 | Speed of the robot (step 1c) | – | Calibrates the drag and the tail propulsion | Time it over a known distance in the basin |
+| 5 | **Speed of the robot for a few flapping settings** (e.g. 1, 1.5 and 2 Hz at 30°) | simulated: 0.47, 0.72, 0.95 m/s | Calibrates the tail propulsion (added mass coefficient) and the hull drag together | Time it over a known distance in the basin, after the speed has settled |
+| 6 | Roll and depth drift while flapping | simulated: ±4–5° of roll, slight climb at high speed | Checks the roll resonance found in the simulation (about 0.9 Hz, [RobotFish_Model.md](RobotFish_Model.md#51-tail-flapping)) | Video from the side and the front, IMU roll, pressure sensor |
+| 7 | Whether the servo keeps the amplitude at high frequency | simulated: amplitude drops above ≈ 2 Hz at 30° | Servo torque and speed under the water load | Video from above, compare the real amplitude with the command |
 
 ## 2. Mass budget (`yaml`)
 
@@ -58,10 +59,14 @@ Each CAD part gets a mass from its CAD volume × an assumed density, or from a d
 | Quantity | Value | Status | Where |
 | --- | --- | --- | --- |
 | Tail servo | Hitec D955TW at 7.4 V: 0.12 s/60° (500°/s), 29 kgf·cm | datasheet | prefab: `tailServoSpeed` |
-| Tail fin angle | ±30° | estimate | yaml `tail_servo.max_angle_deg`, prefab: `maxTailAngle` |
+| Tail servo torque | 2.84 N·m (29 kgf·cm), limits the acceleration of the fin and its water | datasheet | prefab: `tailServoTorque` |
+| Tail servo position loop | gain 40 /s (how closely the servo follows the command) | estimate | prefab: `tailServoGain` |
+| Inertia of the moving tail parts (hub, arm, fin), without water | 0.001 kg·m² about the servo axis | estimate | prefab: `tailFinInertia` |
+| Tail fin angle | ±60° mechanical limit; rudder shortcut ±30° | team | yaml `tail_servo.max_angle_deg`, prefab: `maxTailAngle`, `rudderAngle` |
+| Flapping range | up to 3 Hz (`/cmd/tail_frequency` = 1); cruise (Space, `/cmd/thrust`) 1.5 Hz with 30° | estimate | prefab: `maxTailFrequency`, `cruiseFrequency`, `cruiseAmplitude` |
 | Moving mass | on the tube axis; travel 300 mm (tube length minus 50 mm at each end, approximation from the team), i.e. ±150 mm around the center; speed 50 mm/s (estimate, the drive is unknown); rest position computed so that the robot rests level | team / estimate | yaml `moving_mass`, prefab: `movingMass`, `movingMassTravel`, `movingMassSpeed`, `levelAtRest` |
 | CAD sliding mechanism | HS-5496MH servo, horn 35 mm, rod 40 mm, carriage at the front of the tube: how it relates to the real moving mass is not known; static visual only | CAD | – |
-| Propulsion | **temporary** force of 0.3 N at the tail (about 0.3 m/s), until the tail flapping model (step 1c) | estimate | prefab: `temporaryThrust` |
+| Propulsion | tail flapping (`TailFlapping`, default). Test model `SimpleThrust`: 0.3 N at the tail (about 0.3 m/s) | – | prefab: `propulsion`, `temporaryThrust` |
 | Test ballast | ±25 % of the volume, simulation only (the real robot has none) | – | prefab: `ballastRange`, `ballastRate` |
 
 ## 5. Hydrodynamics
@@ -72,8 +77,12 @@ Each CAD part gets a mass from its CAD volume × an assumed density, or from a d
 | Drag along the hull | C_D = 0.6 on the frontal area (95 cm²), includes the tail drive | estimate (literature) | prefab: `axialDragCoefficient` |
 | Drag across the hull | C_D = 1.1 (cylinder in crossflow), 12 slices | estimate (literature) | prefab: `crossflowDragCoefficient`, `dragSlices` |
 | Drag of the tail drive across | 70 cm² seen from the side, 40 cm² from above | estimate (CAD bounding boxes) | prefab: `tailDriveSideArea`, `tailDriveTopArea` |
-| Fin lift slope | 1.2 /rad (aspect ratio 0.75, Helmbold formula) | estimate | prefab: `tailFin.liftSlope`, `dorsalFin.liftSlope` |
+| Fin lift slope | 1.2 /rad (aspect ratio 0.75, Helmbold formula); dorsal fin, and tail fin in the `SimpleThrust` model | estimate | prefab: `tailFin.liftSlope`, `dorsalFin.liftSlope` |
 | Fin stall | 25°, then flat plate C_N = 1.2·sin α | estimate | prefab: `stallAngle` |
 | Added inertia of the water | 0.0507 kg·m² in pitch and yaw (slender cylinder) | estimate | included in prefab `structureInertia` |
+| Added mass of the flapping tail fin | 0.7 × the 2D flat-plate value ρ·π·span²/4 per unit chord (≈ 1.3 kg for the whole fin), for the 3D effects of the low aspect ratio | estimate (literature range 0.6–0.8) | prefab: `addedMassCoefficient` |
+| Crossflow drag of the flapping fin | C_D = 1.2 (flat plate) | estimate (literature) | prefab: `finCrossflowDrag` |
+| Fin discretization | 8 strips along the chord × 3 rows over the height | numerical | prefab: `tailFinStrips`, `tailFinRows` |
+| Added inertia of the fin when the robot yaws | ≈ 0.27 kg·m², **not used** (`finAddedYawInertia` off, see [RobotFish_Model.md](RobotFish_Model.md#7-limitations)) | – | prefab: `finAddedYawInertia` |
 | Added mass sideways / vertically | 3.8 kg, **not simulated** | – | – |
 | Small linear damping | 0.1 N·s/m, 0.05 N·m·s | estimate (numerical) | prefab: `linearDamping`, `angularDamping` |

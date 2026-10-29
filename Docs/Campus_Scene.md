@@ -70,8 +70,8 @@ python3 Tools/scene_assets/make_textures.py <path to>/logo-ensta.jpg
 | --- | --- |
 | T | start / stop the camera tour |
 | C | free camera (right mouse + WASD) / follow camera |
-| Space | temporary thrust |
-| A / D | tail fin (turns only while moving) |
+| Space | swim (tail flapping) |
+| A / D | turn (while swimming) |
 | W / S | pitch (moving mass) |
 | Q / E | test ballast (simulation only) |
 

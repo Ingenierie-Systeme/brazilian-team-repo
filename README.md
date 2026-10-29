@@ -9,7 +9,7 @@ Unity simulation of the 20 m × 12 m × 6 m test basin used to validate the robo
 - **Unity:** 6000.6.5f1, URP.
 - **Scenes:** `Assets/TestBasin/Scenes/Basin_Grid.unity` (1 m metric grid, for visual debugging) and `Assets/TestBasin/Scenes/Basin_NoGrid.unity` (plain walls, closer to reality for vision algorithms). Both use the same `TestBasin` prefab and differ only by the basin material.
 - **Features:** procedural basin, water volume, underwater fog, metric grid shader, the robot fish (`Assets/AUV/`) swimming inside the basin, and a ground-truth logger that writes the robot pose to CSV.
-- **Controls:** Space = temporary thrust, A/D = tail fin (turns only while moving), W/S = pitch (moving mass), Q/E = test ballast (simulation only), C = free camera (right mouse + WASD).
+- **Controls:** Space = swim (tail flapping), A/D = turn (while swimming), W/S = pitch (moving mass), Q/E = test ballast (simulation only), C = free camera (right mouse + WASD).
 
 Open the project with Unity Hub (*Add project from disk*), load one of the scenes and press Play. See [Docs/TestBasin.md](Docs/TestBasin.md) for details.
 
@@ -21,7 +21,7 @@ Presentation scene: the test basin and the robot fish inside a model of the ENST
 
 ## Robot fish
 
-The real robot is a robot fish: no propeller and no ballast. A tail fin moved side to side by a servo gives propulsion and steering, and a moving mass sliding along the tube axis tilts it so that it changes depth while swimming forward. The simulation model is built from the CAD: mass budget, buoyancy over the real displaced volume, water drag, moving mass and fins. The basin scenes use `RobotFishDetailed`, made of the CAD parts with a transparent hull, whose moving mass and tail move with the commands (a lightweight `RobotFish` prefab with simple shapes has the same physics).
+The real robot is a robot fish: no propeller and no ballast. A tail fin flapped side to side by a servo gives propulsion and steering (simulated with the reactive forces of the water on the fin, about 0.7 m/s at 1.5 Hz), and a moving mass sliding along the tube axis tilts it so that it changes depth while swimming forward. The simulation model is built from the CAD: mass budget, buoyancy over the real displaced volume, water drag, moving mass and fins. The basin scenes use `RobotFishDetailed`, made of the CAD parts with a transparent hull, whose moving mass and tail move with the commands (a lightweight `RobotFish` prefab with simple shapes has the same physics).
 
 ![Detailed robot fish in the simulation](Docs/images/robot_fish_detailed_side.png)
 
@@ -44,12 +44,14 @@ Start the [ROS-TCP-Endpoint](https://github.com/Unity-Technologies/ROS-TCP-Endpo
 
 ## Navigation, guidance and control
 
-The robot actuators can be commanded from ROS 2 (`std_msgs/Float64`, normalized to [-1, 1]):
+The robot actuators can be commanded from ROS 2 (`std_msgs/Float64`, normalized values):
 
 | Topic            | Actuator                                 |
 | ---------------- | ---------------------------------------- |
-| `/cmd/thrust`  | temporary thrust until the tail flapping model (+ forward) |
-| `/cmd/rudder`  | tail fin (+ turn right; needs forward speed) |
+| `/cmd/tail_frequency` | flapping frequency of the tail fin (0 … 1 × 3 Hz) |
+| `/cmd/tail_amplitude` | flapping amplitude (0 … 1 × 60°) |
+| `/cmd/tail_bias` | mean fin angle (−1 … 1 × 60°, + turn right; needs forward speed) |
+| `/cmd/thrust`, `/cmd/rudder` | shortcuts: swim at cruise (1.5 Hz, 30°), turn with a 30° bias |
 | `/cmd/pitch`   | moving mass (+ forward, nose down)       |
 | `/cmd/ballast` | test ballast, simulation only (+ heavier/sink, - lighter/rise) |
 
