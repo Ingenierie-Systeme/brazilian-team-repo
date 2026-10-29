@@ -35,31 +35,35 @@ parts:
 
 # Masses that are not in the CAD.
 extra_masses:
-  # Lead in the sliding-mass carriage (conector_pesos); placed at the carriage centroid.
-  sliding_weights:   {mass: 400, at_part: conector_pesos, status: estimate}
   # Cables, screws, o-rings, connectors; placed at the tube center.
   cables_and_screws: {mass: 100, at: [0, 0, 0], status: estimate}
 
-# Trim ballast: the team adds lead until the robot is neutral (or slightly positive). Assumed placed at the bottom
-# of the tube, at the longitudinal position that makes the robot rest level.
-trim_ballast:
-  target_buoyancy_percent: 0    # 0 = neutral; +2 = buoyancy 2 % larger than the weight
-  height_mm: -45                # height of the trim lead (tube axis = 0, tube inner radius = 50 mm)
-  status: estimate
+# Total mass of the structure (everything except the moving mass) given by the team: about 4 kg, more than the
+# CAD estimate above. The difference is added at the tube center, on the axis (battery, electronics and cables are
+# there), as one "unaccounted" mass. Remove this block once the parts are weighed.
+structure_mass_target:
+  mass_g: 4000
+  at: [0, 0, 0]
+  status: team estimate (2026-10-29)
 
-# Sliding-mass mechanism (HS-5496MH servo, horn and rod pushing the carriage).
-sliding_mass:
-  horn_radius_mm: 34            # servo axis → rod pin, measured on the CAD
-  servo_range_deg: 45           # ± rotation used (standard servo pulses)
-  servo_speed_s_per_60deg: 0.14 # HS-5496MH at 7.4 V (datasheet)
-  status: estimate
+# The robot carries no ballast: only the parts above and the moving mass below (team, 2026-10-28).
+
+# Moving mass (pitch control): a weight that slides along the tube axis (vertically and laterally centered).
+# Its weight is adjustable; it is set to the weight that makes the robot neutral. How it is driven is not known
+# (the HS-5496MH servo and carriage of the CAD are kept only as a visual).
+moving_mass:
+  mass_g: neutral               # weight that makes the robot neutral (team, 2026-10-29); or a value in g
+  center_mm: [0, 0, 0]          # CAD frame (x lateral, y long axis, z up): on the tube axis, centered
+  travel_mm: 300                # total travel along the axis: tube length (400 mm) minus 50 mm at each end
+  speed_mm_s: 50                # carriage speed (estimate: actuator unknown)
+  status: weight and position from the team, travel approximate, speed estimate
 
 # Tail servo (Hitec D955TW at 7.4 V, datasheet).
 tail_servo:
   speed_s_per_60deg: 0.12
   torque_kgf_cm: 29.0
-  max_angle_deg: 30             # ± fin angle used (estimate, limited by the fin connector)
-  status: datasheet
+  max_angle_deg: 60             # ± mechanical limit of the fin (team)
+  status: speed and torque from the datasheet, angle from the team
 
 # Hydrodynamics (literature values for a slender cylinder and small low-aspect-ratio fins).
 hydrodynamics:

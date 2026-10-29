@@ -8,7 +8,7 @@ Simulated sensors of the robot fish (project slides 15 and 17), published to ROS
 
 ## 1. Overview
 
-All sensors are children of the `RobotFish` prefab (`Assets/AUV/Prefabs/RobotFish.prefab`), under `Sensors/`. Their scripts are in `Assets/AUV/Scripts/Sensors/`.
+All sensors are children of the robot fish prefabs (`Assets/AUV/Prefabs/RobotFishDetailed.prefab`, used in the basin, and `RobotFish.prefab`), under `Sensors/`. Their scripts are in `Assets/AUV/Scripts/Sensors/`.
 
 | Sensor | Object (mount) | Script | Topic | Message | Rate |
 | --- | --- | --- | --- | --- | --- |
@@ -42,7 +42,7 @@ Topic names, rates and noise levels are fields of each component in the Inspecto
 - `/ins/velocity`: noise-free body velocity, useful to evaluate navigation.
 
 ### Magnetometer — `MagnetometerPublisher`
-- Constant Earth field defined by intensity (47 µT), inclination (64°) and declination (1.5° E), typical values for the Paris area.
+- Constant Earth field defined by intensity (47.9 µT), inclination (63.5°) and declination (1.0° W), approximate values for Brest (location of the ENSTA Air-Sea Test Basin) from the geomagnetic models for 2026.
 - The field is expressed in the sensor frame, with an optional hard-iron bias and 0.3 µT noise.
 - The Inspector shows the heading computed from the reading (0° = magnetic north, clockwise) for a level sensor.
 
@@ -53,17 +53,17 @@ Topic names, rates and noise levels are fields of each component in the Inspecto
 
 ### GNSS — `GnssPublisher`
 - GNSS signals do not go through water: while the antenna is submerged (more than `maxAntennaDepth` = 5 cm), the receiver publishes `STATUS_NO_FIX` with NaN coordinates.
-- At the surface: latitude/longitude/altitude around a reference point (approx. ENSTA, Palaiseau), using a local tangent-plane approximation of WGS84.
+- At the surface: latitude/longitude/altitude around a reference point (ENSTA campus in Brest, where the Air-Sea Test Basin is: 48.4198° N, 4.4728° W, 110 m above the WGS84 ellipsoid at the basin bottom, estimate), using a local tangent-plane approximation of WGS84.
 - Error: slowly drifting Gauss-Markov process (2 m horizontal, 4 m vertical, 30 s correlation) plus a little white noise.
 - `/gnss/local` and `/gnss/ground_truth` give the measured and true positions in local ENU meters (simulation only).
 
 ## 4. Sensor positions
 
-Positions in the local axes of the `RobotFish` prefab (forward = −X, up = +Y, right = +Z; origin = center of the hull tube). The physical model of the robot is described in [RobotFish_Model.md](RobotFish_Model.md).
+Positions in the local axes of the robot fish prefabs (forward = −X, up = +Y, right = +Z; origin = center of the hull tube). The physical model of the robot is described in [RobotFish_Model.md](RobotFish_Model.md).
 
 | Sensor | Position [m] | Source |
 | --- | --- | --- |
-| RGB camera | (−0.215, 0, 0), inside the front dome | CAD |
+| RGB camera | (−0.215, 0, 0), inside the front dome; it does not render the `Robot` layer, so it does not see the robot itself | CAD |
 | IMU + magnetometer | (−0.014, 0.015, 0), Navigator board | CAD |
 | Pressure sensor | (0.21, 0.03, 0), rear cap | not in the CAD, estimate |
 | GNSS antenna | (0, 0.07, 0), 15 mm above the top of the tube | not in the CAD, estimate |

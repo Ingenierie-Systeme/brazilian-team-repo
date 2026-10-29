@@ -250,9 +250,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::RobotFishPhysics
   basin: {fileID: 0}
   fallbackWaterLevel: 0
-  buoyancyTrimPercent: 0
-  centerOfMass: {x: 0.0061, y: -0.0248, z: 0}
-  inertia: {x: 0.0059, y: 0.1439, z: 0.1455}
   tubeRadius: 0.055
   tubeLength: 0.4
   capRadius: 0.0577
@@ -296,7 +293,7 @@ MonoBehaviour:
     area: 0.0192
     liftSlope: 1.2
     stallAngle: 25
-  maxTailAngle: 30
+  maxTailAngle: 60
   tailServoSpeed: 500
   tailFinPivot: {fileID: 1491283857727877965}
   dorsalFinCenter: {x: 0.17, y: 0.0853, z: 0}
@@ -304,9 +301,6 @@ MonoBehaviour:
     area: 0.0042
     liftSlope: 1.2
     stallAngle: 25
-  slidingMass: 0.4
-  slidingTravel: 0.024
-  slidingSpeed: 0.25
   temporaryThrust: 0.3
   ballastRange: 0.25
   ballastRate: 0.125
@@ -321,7 +315,6 @@ MonoBehaviour:
   buoyancyForce: 0
   forwardSpeed: 0
   finAngle: 0
-  slidingPosition: 0
   ballastAdjust: 0
   centerOfBuoyancy: {x: 0, y: 0, z: 0}
 --- !u!114 &8514563709002804581
@@ -541,9 +534,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1f94a963be06deafd8870ff54571502e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MagnetometerPublisher
-  fieldIntensity: 0.000047
-  inclinationDeg: 64
-  declinationDeg: 1.5
+  fieldIntensity: 0.0000479
+  inclinationDeg: 63.5
+  declinationDeg: -1
   publishRate: 20
   addNoise: 1
   noiseStd: 0.0000003
@@ -1412,9 +1405,9 @@ MonoBehaviour:
   basin: {fileID: 0}
   publishRate: 5
   maxAntennaDepth: 0.05
-  referenceLatitude: 48.7128
-  referenceLongitude: 2.219
-  referenceAltitude: 160
+  referenceLatitude: 48.4198
+  referenceLongitude: -4.4728
+  referenceAltitude: 110
   addNoise: 1
   horizontalStd: 2
   verticalStd: 4

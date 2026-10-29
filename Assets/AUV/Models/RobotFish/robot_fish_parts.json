@@ -1,0 +1,485 @@
+{
+  "parts": [
+    {
+      "name": "tube",
+      "file": "tube.obj",
+      "group": "Hull",
+      "moving": "",
+      "pivot": [
+        0.0,
+        0.0,
+        -0.0
+      ],
+      "material": "acrylic",
+      "color": [
+        0.901961,
+        0.901961,
+        0.901961,
+        1.0
+      ],
+      "triangles": 1152
+    },
+    {
+      "name": "cap_front",
+      "file": "cap_front.obj",
+      "group": "Hull",
+      "moving": "",
+      "pivot": [
+        0.0,
+        0.0,
+        -0.0
+      ],
+      "material": "cad",
+      "color": [
+        0.501961,
+        0.501961,
+        0.501961,
+        1.0
+      ],
+      "triangles": 16000
+    },
+    {
+      "name": "cap_rear",
+      "file": "cap_rear.obj",
+      "group": "Hull",
+      "moving": "",
+      "pivot": [
+        0.0,
+        0.0,
+        -0.0
+      ],
+      "material": "cad",
+      "color": [
+        0.501961,
+        0.501961,
+        0.501961,
+        1.0
+      ],
+      "triangles": 15998
+    },
+    {
+      "name": "dome_cercle",
+      "file": "dome_cercle.obj",
+      "group": "Hull",
+      "moving": "",
+      "pivot": [
+        0.0,
+        0.0,
+        -0.0
+      ],
+      "material": "acrylic",
+      "color": [
+        0.7,
+        0.7,
+        0.7,
+        1.0
+      ],
+      "triangles": 40000
+    },
+    {
+      "name": "camera",
+      "file": "camera.obj",
+      "group": "Camera",
+      "moving": "",
+      "pivot": [
+        0.0,
+        0.0,
+        -0.0
+      ],
+      "material": "cad",
+      "color": [
+        0.647059,
+        0.647059,
+        0.647059,
+        1.0
+      ],
+      "triangles": 622
+    },
+    {
+      "name": "camera_mount",
+      "file": "camera_mount.obj",
+      "group": "Camera",
+      "moving": "",
+      "pivot": [
+        0.0,
+        0.0,
+        -0.0
+      ],
+      "material": "cad",
+      "color": [
+        0.301961,
+        0.301961,
+        0.301961,
+        1.0
+      ],
+      "triangles": 1948
+    },
+    {
+      "name": "rail_400",
+      "file": "rail_400.obj",
+      "group": "Electronics",
+      "moving": "",
+      "pivot": [
+        0.0,
+        0.0,
+        -0.0
+      ],
+      "material": "cad",
+      "color": [
+        0.301961,
+        0.301961,
+        0.301961,
+        1.0
+      ],
+      "triangles": 26000
+    },
+    {
+      "name": "rail_400_1",
+      "file": "rail_400_1.obj",
+      "group": "Electronics",
+      "moving": "",
+      "pivot": [
+        0.0,
+        0.0,
+        -0.0
+      ],
+      "material": "cad",
+      "color": [
+        0.301961,
+        0.301961,
+        0.301961,
+        1.0
+      ],
+      "triangles": 26080
+    },
+    {
+      "name": "tray_rpi",
+      "file": "tray_rpi.obj",
+      "group": "Electronics",
+      "moving": "",
+      "pivot": [
+        0.0,
+        0.0,
+        -0.0
+      ],
+      "material": "cad",
+      "color": [
+        0.301961,
+        0.301961,
+        0.301961,
+        1.0
+      ],
+      "triangles": 18000
+    },
+    {
+      "name": "rpi_navigator",
+      "file": "rpi_navigator.obj",
+      "group": "Electronics",
+      "moving": "",
+      "pivot": [
+        0.0,
+        0.0,
+        -0.0
+      ],
+      "material": "cad",
+      "color": [
+        0.666667,
+        0.698039,
+        0.768627,
+        1.0
+      ],
+      "triangles": 26322
+    },
+    {
+      "name": "tray_battery",
+      "file": "tray_battery.obj",
+      "group": "Electronics",
+      "moving": "",
+      "pivot": [
+        0.0,
+        0.0,
+        -0.0
+      ],
+      "material": "cad",
+      "color": [
+        0.647059,
+        0.647059,
+        0.647059,
+        1.0
+      ],
+      "triangles": 3868
+    },
+    {
+      "name": "battery",
+      "file": "battery.obj",
+      "group": "Electronics",
+      "moving": "",
+      "pivot": [
+        0.0,
+        0.0,
+        -0.0
+      ],
+      "material": "cad",
+      "color": [
+        0.615686,
+        0.811765,
+        0.929412,
+        1.0
+      ],
+      "triangles": 12
+    },
+    {
+      "name": "_hs_5496mh",
+      "file": "_hs_5496mh.obj",
+      "group": "PitchMechanism",
+      "moving": "",
+      "pivot": [
+        0.0,
+        0.0,
+        -0.0
+      ],
+      "material": "cad",
+      "color": [
+        0.301961,
+        0.278431,
+        0.290196,
+        1.0
+      ],
+      "triangles": 2782
+    },
+    {
+      "name": "conector_servo",
+      "file": "conector_servo.obj",
+      "group": "PitchMechanism",
+      "moving": "",
+      "pivot": [
+        0.0,
+        0.0,
+        -0.0
+      ],
+      "material": "cad",
+      "color": [
+        0.615686,
+        0.811765,
+        0.929412,
+        1.0
+      ],
+      "triangles": 2524
+    },
+    {
+      "name": "conector_servo_1",
+      "file": "conector_servo_1.obj",
+      "group": "PitchMechanism",
+      "moving": "horn",
+      "pivot": [
+        -0.1025,
+        -0.0,
+        -0.0037
+      ],
+      "material": "cad",
+      "color": [
+        0.615686,
+        0.811765,
+        0.929412,
+        1.0
+      ],
+      "triangles": 2320
+    },
+    {
+      "name": "haste",
+      "file": "haste.obj",
+      "group": "PitchMechanism",
+      "moving": "rod",
+      "pivot": [
+        -0.130579,
+        -0.0355,
+        -0.00495
+      ],
+      "material": "cad",
+      "color": [
+        0.615686,
+        0.811765,
+        0.929412,
+        1.0
+      ],
+      "triangles": 4092
+    },
+    {
+      "name": "conector_pesos",
+      "file": "conector_pesos.obj",
+      "group": "PitchMechanism",
+      "moving": "carriage",
+      "pivot": [
+        -0.130579,
+        -0.0355,
+        -0.00495
+      ],
+      "material": "cad",
+      "color": [
+        0.615686,
+        0.811765,
+        0.929412,
+        1.0
+      ],
+      "triangles": 4530
+    },
+    {
+      "name": "clamp",
+      "file": "clamp.obj",
+      "group": "TailDrive",
+      "moving": "",
+      "pivot": [
+        0.0,
+        0.0,
+        -0.0
+      ],
+      "material": "cad",
+      "color": [
+        0.301961,
+        0.301961,
+        0.301961,
+        1.0
+      ],
+      "triangles": 11984
+    },
+    {
+      "name": "servo_mount",
+      "file": "servo_mount.obj",
+      "group": "TailDrive",
+      "moving": "",
+      "pivot": [
+        0.0,
+        0.0,
+        -0.0
+      ],
+      "material": "cad",
+      "color": [
+        0.301961,
+        0.301961,
+        0.301961,
+        1.0
+      ],
+      "triangles": 10420
+    },
+    {
+      "name": "underwater_servo",
+      "file": "underwater_servo.obj",
+      "group": "TailDrive",
+      "moving": "",
+      "pivot": [
+        0.0,
+        0.0,
+        -0.0
+      ],
+      "material": "cad",
+      "color": [
+        0.647059,
+        0.647059,
+        0.647059,
+        1.0
+      ],
+      "triangles": 24000
+    },
+    {
+      "name": "underwater_servo_hub",
+      "file": "underwater_servo_hub.obj",
+      "group": "TailDrive",
+      "moving": "tail",
+      "pivot": [
+        0.325,
+        0.006215,
+        0.0
+      ],
+      "material": "cad",
+      "color": [
+        0.8,
+        0.8,
+        0.8,
+        1.0
+      ],
+      "triangles": 7040
+    },
+    {
+      "name": "conector_calda",
+      "file": "conector_calda.obj",
+      "group": "TailDrive",
+      "moving": "tail",
+      "pivot": [
+        0.325,
+        0.006215,
+        0.0
+      ],
+      "material": "cad",
+      "color": [
+        0.615686,
+        0.811765,
+        0.929412,
+        1.0
+      ],
+      "triangles": 6150
+    },
+    {
+      "name": "calda",
+      "file": "calda.obj",
+      "group": "TailDrive",
+      "moving": "tail",
+      "pivot": [
+        0.325,
+        0.006215,
+        0.0
+      ],
+      "material": "fin",
+      "color": [
+        0.8,
+        0.8,
+        0.8,
+        1.0
+      ],
+      "triangles": 1748
+    },
+    {
+      "name": "calda_lateral",
+      "file": "calda_lateral.obj",
+      "group": "DorsalFin",
+      "moving": "",
+      "pivot": [
+        0.0,
+        0.0,
+        -0.0
+      ],
+      "material": "fin",
+      "color": [
+        0.615686,
+        0.811765,
+        0.929412,
+        1.0
+      ],
+      "triangles": 1344
+    }
+  ],
+  "mechanisms": {
+    "shaft": [
+      -0.1025,
+      -0.0,
+      -0.0037
+    ],
+    "hornPinAtFrontStop": [
+      -0.090661,
+      -0.032937,
+      -0.0037
+    ],
+    "carriagePinAtFrontStop": [
+      -0.130579,
+      -0.0355,
+      -0.00495
+    ],
+    "hornRadius": 0.035,
+    "rodLength": 0.04,
+    "tailAxis": [
+      0.325,
+      0.006215,
+      0.0
+    ],
+    "cadFinDeflectionDeg": 10.46
+  }
+}

@@ -14,5 +14,8 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/AUV/Scenes/Submarine_model.unity
     guid: bce1aa141efb34aa381c1d16511a5bbb
+  - enabled: 1
+    path: Assets/Environment/Scenes/AirSeaTestBasin_Campus.unity
+    guid: 83ce12f324aa1aae0b3fd48dc3ed792f
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
