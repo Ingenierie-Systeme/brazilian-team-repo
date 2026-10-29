@@ -42,7 +42,7 @@ Topic names, rates and noise levels are fields of each component in the Inspecto
 - `/ins/velocity`: noise-free body velocity, useful to evaluate navigation.
 
 ### Magnetometer — `MagnetometerPublisher`
-- Constant Earth field defined by intensity (47 µT), inclination (64°) and declination (1.5° E), typical values for the Paris area.
+- Constant Earth field defined by intensity (47.9 µT), inclination (63.5°) and declination (1.0° W), approximate values for Brest (location of the ENSTA Air-Sea Test Basin) from the geomagnetic models for 2026.
 - The field is expressed in the sensor frame, with an optional hard-iron bias and 0.3 µT noise.
 - The Inspector shows the heading computed from the reading (0° = magnetic north, clockwise) for a level sensor.
 
@@ -53,7 +53,7 @@ Topic names, rates and noise levels are fields of each component in the Inspecto
 
 ### GNSS — `GnssPublisher`
 - GNSS signals do not go through water: while the antenna is submerged (more than `maxAntennaDepth` = 5 cm), the receiver publishes `STATUS_NO_FIX` with NaN coordinates.
-- At the surface: latitude/longitude/altitude around a reference point (approx. ENSTA, Palaiseau), using a local tangent-plane approximation of WGS84.
+- At the surface: latitude/longitude/altitude around a reference point (ENSTA campus in Brest, where the Air-Sea Test Basin is: 48.4198° N, 4.4728° W, 110 m above the WGS84 ellipsoid at the basin bottom, estimate), using a local tangent-plane approximation of WGS84.
 - Error: slowly drifting Gauss-Markov process (2 m horizontal, 4 m vertical, 30 s correlation) plus a little white noise.
 - `/gnss/local` and `/gnss/ground_truth` give the measured and true positions in local ENU meters (simulation only).
 

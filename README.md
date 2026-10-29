@@ -13,6 +13,12 @@ Unity simulation of the 20 m × 12 m × 6 m test basin used to validate the robo
 
 Open the project with Unity Hub (*Add project from disk*), load one of the scenes and press Play. See [Docs/TestBasin.md](Docs/TestBasin.md) for details.
 
+## Campus scene
+
+Presentation scene: the test basin and the robot fish inside a model of the ENSTA Air-Sea Test Basin building (Brest campus), with the parking lot, trees, a sky and a camera tour from the campus down to the robot (`Assets/Environment/Scenes/AirSeaTestBasin_Campus.unity`, T = tour). Sensors and ROS 2 commands work as in the basin scenes. See [Docs/Campus_Scene.md](Docs/Campus_Scene.md).
+
+![Campus scene](Docs/images/campus_aerial.png)
+
 ## Robot fish
 
 The real robot is a robot fish: no propeller and no ballast. A tail fin moved side to side by a servo gives propulsion and steering, and a moving mass sliding along the tube axis tilts it so that it changes depth while swimming forward. The simulation model is built from the CAD: mass budget, buoyancy over the real displaced volume, water drag, moving mass and fins. The basin scenes use `RobotFishDetailed`, made of the CAD parts with a transparent hull, whose moving mass and tail move with the commands (a lightweight `RobotFish` prefab with simple shapes has the same physics).
@@ -57,8 +63,10 @@ Unity assets are grouped by feature:
 Assets/
 ├── TestBasin/   test basin simulation (scripts, grid shader, materials, prefab, scenes)
 ├── AUV/         robot fish (physics, sensors, ROS control, CAD models, prefabs, prefab builder) and the original AUV scene
+├── Environment/ campus scene: Air-Sea Test Basin building and surroundings (scene builder, camera tour, materials, textures)
 └── Settings/    URP render pipeline settings
 Docs/            documentation, images and media
 Tools/
-└── cad_analysis/  physical properties of the robot from its CAD, CAD → Unity conversion (Python)
+├── cad_analysis/  physical properties of the robot from its CAD, CAD → Unity conversion (Python)
+└── scene_assets/  logo and sign textures of the campus scene (Python)
 ```

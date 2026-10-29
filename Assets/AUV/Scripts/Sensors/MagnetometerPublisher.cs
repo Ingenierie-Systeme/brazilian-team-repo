@@ -9,10 +9,10 @@ using RosMessageTypes.Geometry;                       // Vector3Msg
 // World convention (same as the GNSS): Unity +Z = north, +X = east, +Y = up.
 public class MagnetometerPublisher : MonoBehaviour
 {
-    [Header("Earth magnetic field (default: Paris area)")] // Inspector section title
-    public float fieldIntensity = 47e-6f;             // total intensity [T] (~47 µT in France)
-    public float inclinationDeg = 64f;                // dip angle below the horizon [degrees]
-    public float declinationDeg = 1.5f;               // angle of magnetic north east of true north [degrees]
+    [Header("Earth magnetic field (default: Brest, approx. 2026 model values)")] // Inspector section title
+    public float fieldIntensity = 47.9e-6f;           // total intensity [T] (~48 µT in Brest)
+    public float inclinationDeg = 63.5f;              // dip angle below the horizon [degrees]
+    public float declinationDeg = -1.0f;              // angle of magnetic north east of true north [degrees] (Brest: ≈ 1° west)
 
     [Header("Sensor")]                                // Inspector section title
     public float publishRate = 20f;                   // [Hz]

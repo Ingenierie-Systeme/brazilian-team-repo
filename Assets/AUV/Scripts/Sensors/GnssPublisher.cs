@@ -17,9 +17,9 @@ public class GnssPublisher : MonoBehaviour
     public float maxAntennaDepth = 0.05f;             // antenna depth still accepted as "at the surface" [m]
 
     [Header("Reference (Unity origin)")]              // Inspector section title
-    public double referenceLatitude = 48.7128;        // [deg] (approx. ENSTA campus, Palaiseau)
-    public double referenceLongitude = 2.2190;        // [deg]
-    public double referenceAltitude = 160.0;          // [m] above the WGS84 ellipsoid
+    public double referenceLatitude = 48.4198;        // [deg] (ENSTA campus, Brest: Air-Sea Test Basin)
+    public double referenceLongitude = -4.4728;       // [deg] (west = negative)
+    public double referenceAltitude = 110.0;          // [m] above the WGS84 ellipsoid (basin bottom: street ≈ 60 m above sea level + geoid ≈ 51 m − 3 m, estimate)
 
     [Header("Noise")]                                 // Inspector section title
     public bool addNoise = true;                      // enable the position error

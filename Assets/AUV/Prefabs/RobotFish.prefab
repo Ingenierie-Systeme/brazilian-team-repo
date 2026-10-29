@@ -534,9 +534,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1f94a963be06deafd8870ff54571502e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MagnetometerPublisher
-  fieldIntensity: 0.000047
-  inclinationDeg: 64
-  declinationDeg: 1.5
+  fieldIntensity: 0.0000479
+  inclinationDeg: 63.5
+  declinationDeg: -1
   publishRate: 20
   addNoise: 1
   noiseStd: 0.0000003
@@ -1405,9 +1405,9 @@ MonoBehaviour:
   basin: {fileID: 0}
   publishRate: 5
   maxAntennaDepth: 0.05
-  referenceLatitude: 48.7128
-  referenceLongitude: 2.219
-  referenceAltitude: 160
+  referenceLatitude: 48.4198
+  referenceLongitude: -4.4728
+  referenceAltitude: 110
   addNoise: 1
   horizontalStd: 2
   verticalStd: 4
