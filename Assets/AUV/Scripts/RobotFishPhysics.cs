@@ -39,14 +39,28 @@ public class RobotFishPhysics : MonoBehaviour
     public float fallbackWaterLevel = 0f;
 
     // ------------------------------------------------------------------ mass properties
-    // The robot carries no ballast: its mass is the structure (every part, estimated from the CAD) plus the
-    // moving mass. Its buoyancy is therefore a result, not a setting (see Docs/RobotFish_CAD_Report.md).
-    [Header("Structure (everything except the moving mass, Docs/RobotFish_CAD_Report.md)")]
-    [Tooltip("Mass of the structure: hull, electronics, battery, servos, fins [kg] (team estimate: about 4 kg; the part of it not explained by the CAD is placed at the tube center).")]
+    // The robot carries no ballast: its mass is the structure plus the moving mass. Its buoyancy is therefore a
+    // result, not a setting. Two models for how the structure mass is distributed (field `massModel`):
+    //   - Simplified (default): the components only matter as a total mass. The structure is balanced like a
+    //     well-trimmed robot: its center of mass is right under the center of buoyancy (B) with the moving mass at
+    //     the tube center, `centerOfMassBelowBuoyancy` (BG) below it, and its inertia is that of a uniform cylinder
+    //     of the hull size. On the real robot this balance is reached by placing the battery and the other
+    //     components; BG is mainly set by how low the battery is mounted.
+    //   - Cad: center of mass and inertia from the CAD parts (Docs/RobotFish_CAD_Report.md).
+    public enum MassModel { Simplified, Cad }
+
+    [Header("Structure (everything except the moving mass)")]
+    [Tooltip("Mass of the structure: hull, electronics, battery, servos, fins [kg] (team estimate: about 4 kg).")]
     public float structureMass = 4.000f;
-    [Tooltip("Center of mass of the structure, local axes [m].")]
+    [Tooltip("Simplified: balanced structure, center of mass under the center of buoyancy (computed at start). Cad: values below, from the CAD parts.")]
+    public MassModel massModel = MassModel.Simplified;
+    [Tooltip("Simplified model: distance from the center of buoyancy down to the center of mass (BG) with the moving mass at the tube center [m]. Larger = the robot rights itself more strongly in roll and pitch.")]
+    public float centerOfMassBelowBuoyancy = 0.010f;
+    [Tooltip("Simplified model: added inertia of the water in pitch and yaw [kg·m²] (slender cylinder, Docs/RobotFish_CAD_Report.md).")]
+    public float waterAddedInertia = 0.0507f;
+    [Tooltip("Center of mass of the structure, local axes [m]. Cad model: from the CAD report. Simplified model: computed at start.")]
     public Vector3 structureCenterOfMass = new Vector3(0.0237f, -0.0049f, 0f);
-    [Tooltip("Principal moments of inertia of the structure about its own center of mass, local axes x (roll), y (yaw), z (pitch), including the added inertia of the water [kg·m²].")]
+    [Tooltip("Principal moments of inertia of the structure about its own center of mass, local axes x (roll), y (yaw), z (pitch), including the added inertia of the water [kg·m²]. Cad model: from the CAD report. Simplified model: computed at start.")]
     public Vector3 structureInertia = new Vector3(0.0044f, 0.1322f, 0.1324f);
 
     // ------------------------------------------------------------------ hull geometry (displaced volume)
@@ -183,6 +197,7 @@ public class RobotFishPhysics : MonoBehaviour
     // ------------------------------------------------------------------ debug
     [Header("Debug (read-only)")]
     public float mass;                                // structure + moving mass [kg]
+    public float bg;                                  // center of mass below the center of buoyancy [m]
     public float buoyancyPercent;                     // (water pushed up / weight − 1) × 100: + = floats
     public float displacedVolume;                     // sum of the buoyancy points [m³]
     public float submergedFraction;                   // part of the volume under water
@@ -238,6 +253,7 @@ public class RobotFishPhysics : MonoBehaviour
         BuildBuoyancyPoints();
         BuildDragSlices();
         BuildTailStrips();
+        if (massModel == MassModel.Simplified) SetSimplifiedMassModel();
         mass = structureMass + movingMass;
         buoyancyPercent = (WaterDensity * displacedVolume / mass - 1f) * 100f;
         if (levelAtRest && movingMass > 1e-4f)        // CoM under the CoB: structure·x_s + moving·x_m = mass·x_B
@@ -252,6 +268,23 @@ public class RobotFishPhysics : MonoBehaviour
         UpdateMassProperties();
     }
 
+    // Simplified mass model: the structure is balanced so that, with the moving mass at the tube center, the center
+    // of mass of the whole robot is right under the center of buoyancy, BG below it:
+    //   structure·G_s + moving·(0, 0, 0) = total·(B − BG·up)  →  G_s = total·(B − BG·up) / structure.
+    // Inertia of the structure: uniform solid cylinder of the hull size (tube radius, dome tip to rear cap),
+    //   roll = ½·m·r², pitch = yaw = m·(3·r² + L²)/12, plus the added inertia of the water in pitch and yaw.
+    void SetSimplifiedMassModel()
+    {
+        float total = structureMass + movingMass;
+        Vector3 target = centerOfBuoyancy + Vector3.down * centerOfMassBelowBuoyancy;
+        target.z = 0f;                                                     // laterally centered
+        structureCenterOfMass = total * target / structureMass;
+        float r = tubeRadius;
+        float length = domeRadius + 2f * capThickness + tubeLength;       // dome tip to rear cap
+        float across = structureMass * (3f * r * r + length * length) / 12f;
+        structureInertia = new Vector3(0.5f * structureMass * r * r, across + waterAddedInertia, across + waterAddedInertia);
+    }
+
     // Mass, center of mass and inertia of structure + moving mass (the moving mass is on the tube axis)
     void UpdateMassProperties()
     {
@@ -260,6 +293,7 @@ public class RobotFishPhysics : MonoBehaviour
         Vector3 movingPoint = Vector3.left * movingMassPosition;                      // forward = −X
         Vector3 com = (structureMass * structureCenterOfMass + movingMass * movingPoint) / mass;
         rb.centerOfMass = com;
+        bg = centerOfBuoyancy.y - com.y;
         // parallel-axis theorem: each part's inertia about the common center of mass (diagonal terms)
         Vector3 inertia = structureInertia + ParallelAxis(structureMass, structureCenterOfMass - com) + ParallelAxis(movingMass, movingPoint - com);
         if (propulsion == PropulsionModel.TailFlapping && finAddedYawInertia) inertia.y += FinAddedYawInertia(com);
