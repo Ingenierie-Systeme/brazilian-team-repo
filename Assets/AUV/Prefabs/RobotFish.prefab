@@ -293,7 +293,7 @@ MonoBehaviour:
     area: 0.0192
     liftSlope: 1.2
     stallAngle: 25
-  maxTailAngle: 30
+  maxTailAngle: 60
   tailServoSpeed: 500
   tailFinPivot: {fileID: 1491283857727877965}
   dorsalFinCenter: {x: 0.17, y: 0.0853, z: 0}

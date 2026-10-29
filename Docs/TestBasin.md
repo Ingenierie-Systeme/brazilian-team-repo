@@ -140,8 +140,8 @@ Robot controls (from `RobotFishPhysics`):
 
 | Key | Action |
 | --- | --- |
-| Space | temporary thrust (until the tail flapping model) |
-| A / D | tail fin (turn left / right; only while moving) |
+| Space | swim: the tail fin flaps (1.5 Hz, 30°) |
+| A / D | turn left / right: the fin flaps around a 30° bias (only while swimming) |
 | W / S | moving mass forward / backward (nose down / up) |
 | Q or Shift / E or Ctrl | test ballast: heavier / lighter (**simulation only**, the real robot has no ballast) |
 
@@ -187,7 +187,7 @@ A video of the simulation is available in `media/basin_simulation.mp4`.
 2. In the Project window, open `Assets/TestBasin/Scenes/Basin_Grid` (with grid) or `Basin_NoGrid` (without grid).
 3. Press **▶ Play** and drive the AUV with the keys of section 3.7. The camera follows it; below 5.5 m inside the basin, the underwater fog turns on.
 4. Press **C** for the free camera: hold the **right mouse button** and use **WASD**, **Q/E** (down/up) and **Shift** (faster). Press **C** again to follow the AUV.
-5. To test buoyancy: with the default moving mass (100 g) the robot floats; set `Moving Mass` to 2.282 on `RobotFishDetailed` (`Robot Fish Physics`) for a neutral robot, or change the test ballast with **Q/E** (simulation only). `RobotFishPhysics` parameters are on the robot fish prefabs.
+5. To test buoyancy: with the default moving mass (714 g) the robot is neutral; set a smaller `Moving Mass` on `RobotFishDetailed` (`Robot Fish Physics`) for a floating robot, or change the test ballast with **Q/E** (simulation only). `RobotFishPhysics` parameters are on the robot fish prefabs.
 6. When leaving Play mode, the Console prints the path of the CSV file, saved in `GroundTruthLogs/`.
 7. To change the basin, edit the `TestBasin` parameters on the prefab; the pieces regenerate automatically.
 

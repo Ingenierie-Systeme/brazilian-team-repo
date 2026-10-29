@@ -79411,10 +79411,6 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
-    - target: {fileID: 4435526106921848177, guid: 53315c33e9c6e1b72820e9795d58ce21, type: 3}
-      propertyPath: movingMass
-      value: 2.282
-      objectReference: {fileID: 0}
     - target: {fileID: 5748384583845505722, guid: 53315c33e9c6e1b72820e9795d58ce21, type: 3}
       propertyPath: m_Name
       value: RobotFishDetailed

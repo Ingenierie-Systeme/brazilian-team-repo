@@ -2298,9 +2298,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::RobotFishPhysics
   basin: {fileID: 0}
   fallbackWaterLevel: 0
-  structureMass: 2.432
-  structureCenterOfMass: {x: 0.039, y: -0.008, z: 0}
-  structureInertia: {x: 0.0044, y: 0.1307, z: 0.1309}
+  structureMass: 4
+  structureCenterOfMass: {x: 0.0237, y: -0.0049, z: 0}
+  structureInertia: {x: 0.0044, y: 0.1322, z: 0.1324}
   tubeRadius: 0.055
   tubeLength: 0.4
   capRadius: 0.0577
@@ -2344,7 +2344,7 @@ MonoBehaviour:
     area: 0.0192
     liftSlope: 1.2
     stallAngle: 25
-  maxTailAngle: 30
+  maxTailAngle: 60
   tailServoSpeed: 500
   tailFinPivot: {fileID: 0}
   dorsalFinCenter: {x: 0.17, y: 0.0853, z: 0}
@@ -2352,7 +2352,7 @@ MonoBehaviour:
     area: 0.0042
     liftSlope: 1.2
     stallAngle: 25
-  movingMass: 0.1
+  movingMass: 0.714
   movingMassTravel: 0.15
   movingMassSpeed: 0.05
   movingMassRestPosition: 0

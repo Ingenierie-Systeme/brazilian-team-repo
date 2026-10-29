@@ -70,14 +70,14 @@ python3 Tools/scene_assets/make_textures.py <path to>/logo-ensta.jpg
 | --- | --- |
 | T | start / stop the camera tour |
 | C | free camera (right mouse + WASD) / follow camera |
-| Space | temporary thrust |
-| A / D | tail fin (turns only while moving) |
+| Space | swim (tail flapping) |
+| A / D | turn (while swimming) |
 | W / S | pitch (moving mass) |
 | Q / E | test ballast (simulation only) |
 
 The tour is the `CameraTour` component of the main camera: its waypoints (position, look target, duration) can be edited in the Inspector, and `playOnStart` can be turned off.
 
-**Moving mass:** in this scene the moving mass of the robot is set to 2.282 kg, the value that makes the robot neutral (see [RobotFish_Model.md](RobotFish_Model.md)), so that it stays at mid-depth for the presentation instead of floating at the surface with the 100 g starting weight.
+**Moving mass:** the robot uses its default moving mass (714 g), which makes it neutral (see [RobotFish_Model.md](RobotFish_Model.md)), so it stays at mid-depth.
 
 **With ROS 2:** the scene publishes the same sensor topics and listens to the same commands as the basin scenes.
 
