@@ -12,11 +12,11 @@ The simulation of the robot fish relies on values that were not measured on the 
 
 | # | Quantity | Current value | Why it matters | How to measure |
 | --- | --- | --- | --- | --- |
-| 1 | **Mass of the robot** (weighed in air, with everything inside except the moving mass) | 2.43 kg (estimate) | Decides whether it floats or sinks: with the estimate it floats strongly (+86 % with 100 g of moving mass) and needs ≈ 2.28 kg of moving mass to be neutral | Kitchen scale |
+| 1 | **Mass of the robot** (weighed in air, with everything inside except the moving mass) | 4.0 kg (team estimate; the CAD parts explain 2.43 kg, the rest is placed at the tube center) | Sets the moving mass needed to be neutral (714 g with 4.0 kg) and where the center of mass is | Kitchen scale |
 | 2 | Buoyancy in the basin, for a given moving mass | – | Confirms the displaced volume and the mass together | In the basin, note how much of the robot stays out of the water, or add weight until it barely floats |
-| 3 | Weight of the moving mass in use | 100 g (team; adjustable) | Pitch authority and buoyancy | Weigh it |
+| 3 | Weight of the moving mass in use | 714 g (the weight that makes the robot neutral) | Pitch authority and buoyancy | Weigh it |
 | 4 | Longitudinal position of the center of mass of the structure | 39 mm behind the tube center (estimate: the tail servo is heavy and at the rear) | Decides where the moving mass must be for the robot to be level | Balance the robot (without the moving mass) on a rod across the tube |
-| 5 | **Speed of the robot for a few flapping settings** (e.g. 1, 1.5 and 2 Hz at 30°) | simulated: 0.47, 0.72, 0.95 m/s | Calibrates the tail propulsion (added mass coefficient) and the hull drag together | Time it over a known distance in the basin, after the speed has settled |
+| 5 | **Speed of the robot for a few flapping settings** (e.g. 1, 1.5 and 2 Hz at 30°) | simulated: 0.47, 0.72, 0.96 m/s | Calibrates the tail propulsion (added mass coefficient) and the hull drag together | Time it over a known distance in the basin, after the speed has settled |
 | 6 | Roll and depth drift while flapping | simulated: ±4–5° of roll, slight climb at high speed | Checks the roll resonance found in the simulation (about 0.9 Hz, [RobotFish_Model.md](RobotFish_Model.md#51-tail-flapping)) | Video from the side and the front, IMU roll, pressure sensor |
 | 7 | Whether the servo keeps the amplitude at high frequency | simulated: amplitude drops above ≈ 2 Hz at 30° | Servo torque and speed under the water load | Video from above, compare the real amplitude with the command |
 
@@ -36,7 +36,8 @@ Each CAD part gets a mass from its CAD volume × an assumed density, or from a d
 | Tail servo Hitec D955TW | 66 g + waterproof PLA housing filling the rest of its CAD volume at 60 % infill | servo: datasheet, housing: estimate |
 | Rod (`haste`) | steel, 7.85 g/cm³ | estimate |
 | Cables, screws, o-rings | 100 g at the tube center | estimate |
-| Moving mass | 100 g on the tube axis (team: starts at 100 g, weight is added as needed); not part of the structure mass | team |
+| Unaccounted mass | 1.57 kg at the tube center, on the axis: difference between the team estimate of the structure (4.0 kg) and the parts above (2.43 kg) | team estimate (yaml `structure_mass_target`) |
+| Moving mass | 714 g on the tube axis, the weight that makes the robot neutral (yaml `moving_mass.mass_g: neutral`); not part of the structure mass | team |
 | Ballast | none: the robot carries only its parts and the moving mass (team) | team |
 
 ## 3. Geometry (CAD)

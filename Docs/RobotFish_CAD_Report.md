@@ -45,7 +45,8 @@ Frames: CAD = (X lateral, Y long axis with the front at −Y, Z up); Unity = loc
 | `calda` | PLA | estimate | 95.8 | 119 | (26.2, 466.7, -17.0) |
 | `calda_lateral` | PLA | estimate | 6.3 | 8 | (-0.0, 166.8, 87.0) |
 | `cables_and_screws` | not in the CAD | estimate | 0.0 | 100 | (0.0, 0.0, 0.0) |
-| **Total structure** (without the moving mass) | | | | **2432** | (0.8, 39.0, -8.0) |
+| `unaccounted` | difference with the team estimate of the robot mass | team estimate (2026-10-29) | 0.0 | 1568 | (0.0, 0.0, 0.0) |
+| **Total structure** (without the moving mass) | | | | **4000** | (0.5, 23.7, -4.9) |
 
 The robot carries no ballast: its weight is the structure above plus the moving mass.
 
@@ -54,14 +55,15 @@ The robot carries no ballast: its weight is the structure above plus the moving 
 | Quantity | Value |
 | --- | --- |
 | Displaced volume | 4.71 L (tube envelope 3.80, cap discs 0.17, dome 0.39, parts outside the hull 0.35) → the water pushes up with the weight of 4.71 kg |
-| Structure | 2.43 kg |
-| Moving mass (current) | 100 g, on the tube axis |
-| Total mass | 2.53 kg → buoyancy **+86 %** of the weight (floats) |
-| Moving mass for neutral buoyancy | **2282 g** |
+| Structure | 4.00 kg |
+| Moving mass (current) | 714 g, on the tube axis (set to the neutral value) |
+| Total mass | 4.71 kg → buoyancy **+0 %** of the weight (neutral) |
+| Moving mass for neutral buoyancy | **714 g** |
 | Center of buoyancy (CAD) | (0.6, 6.1, -1.3) mm |
-| Center of mass (CAD), moving mass centered | (0.8, 37.4, -7.7) mm |
-| CoM below CoB (BG) | 6.4 mm → righting moment 0.16 N·m/rad |
-| CoM behind the CoB | 31.3 mm → resting pitch +78.4° (+ = nose up) with the moving mass centered |
+| Center of mass (CAD), moving mass centered | (0.4, 20.1, -4.2) mm |
+| CoM below CoB (BG) | 2.8 mm → righting moment 0.13 N·m/rad |
+| CoM behind the CoB | 14.0 mm → resting pitch +78.5° (+ = nose up) with the moving mass centered |
+| Moving mass position for a level robot | 92 mm forward of the tube center (within its ±150 mm travel) |
 
 The structure masses are estimates (CAD volume × assumed material), so the buoyancy is uncertain: weighing the robot is the best way to confirm it.
 
@@ -71,10 +73,10 @@ Travel: 300 mm along the tube axis (±150 mm), speed 50 mm/s (estimate). The max
 
 | Moving mass | Total mass | Buoyancy | BG | Maximum static pitch |
 | --- | --- | --- | --- | --- |
-| 100 g (current) | 2.53 kg | +86 % | 6.4 mm | ±43° |
-| 500 g | 2.93 kg | +61 % | 5.4 mm | ±78° |
-| 1000 g | 3.43 kg | +37 % | 4.4 mm | ±84° |
-| 2282 g (neutral) | 4.71 kg | +0 % | 2.8 mm | ±88° |
+| 100 g | 4.10 kg | +15 % | 3.5 mm | ±47° |
+| 500 g | 4.50 kg | +5 % | 3.0 mm | ±80° |
+| 1000 g | 5.00 kg | -6 % | 2.6 mm | ±85° |
+| 714 g (neutral) | 4.71 kg | +0 % | 2.8 mm | ±83° |
 
 ## Inertia
 
@@ -83,8 +85,8 @@ Structure only, about its own center of mass (the simulation adds the moving mas
 | Axis (Unity) | Rigid body [kg·m²] | Added (water) [kg·m²] | Total used [kg·m²] |
 | --- | --- | --- | --- |
 | roll (x, long axis) | 0.0044 | 0 | 0.0044 |
-| yaw (y, vertical) | 0.0800 | 0.0507 | 0.1307 |
-| pitch (z, lateral) | 0.0802 | 0.0507 | 0.1309 |
+| yaw (y, vertical) | 0.0815 | 0.0507 | 0.1322 |
+| pitch (z, lateral) | 0.0817 | 0.0507 | 0.1324 |
 
 Hull added mass sideways and vertically: 3.80 kg (not used in the simulation, see `RobotFish_Model.md`).
 
@@ -108,10 +110,10 @@ Tail servo: max angle ±60°, speed 500°/s, torque 2.84 N·m (D955TW at 7.4 V).
 | Field | Value |
 | --- | --- |
 | `displacedVolume` | 0.00471 m³ |
-| `structureMass` | 2.432 kg |
-| `structureCenterOfMass` (Unity) | (39.0, -8.0, -0.8) mm |
-| `structureInertia` (Unity x, y, z) | (0.0044, 0.1307, 0.1309) kg·m² |
-| `movingMass`, `movingMassTravel`, `movingMassSpeed` | 0.10 kg, ±0.150 m, 0.050 m/s |
+| `structureMass` | 4.000 kg |
+| `structureCenterOfMass` (Unity) | (23.7, -4.9, -0.5) mm |
+| `structureInertia` (Unity x, y, z) | (0.0044, 0.1322, 0.1324) kg·m² |
+| `movingMass`, `movingMassTravel`, `movingMassSpeed` | 0.71 kg, ±0.150 m, 0.050 m/s |
 | `tailHinge` (Unity) | (325.0, 6.2, 0.0) mm |
 | tail fin center of pressure | 0.104 m behind the hinge, height -0.017 m |
 | `tailFinArea`, `dorsalFinArea` | 0.0192 m², 0.0042 m² |

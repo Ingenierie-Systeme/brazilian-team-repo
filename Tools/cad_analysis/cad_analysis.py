@@ -157,6 +157,11 @@ def main():
     for name, spec in A['extra_masses'].items():
         at = parts[spec['at_part']]['cen'] if 'at_part' in spec else np.array(spec['at'], float)
         rows.append((name, 'not in the CAD', spec['status'], 0.0, spec['mass'] / 1000, at, np.zeros((3, 3))))
+    target = A.get('structure_mass_target')                     # optional: total structure mass given by the team
+    if target:
+        missing = target['mass_g'] / 1000 - sum(r[4] for r in rows)
+        rows.append(('unaccounted', 'difference with the team estimate of the robot mass', target['status'], 0.0,
+                     missing, np.array(target['at'], float), np.zeros((3, 3))))
     m_dry = sum(r[4] for r in rows)
     com_dry = sum(r[4] * r[5] for r in rows) / m_dry
 
@@ -179,14 +184,16 @@ def main():
 
     # ---- 3. moving mass on the tube axis (pitch control; its weight is adjustable, the robot carries no ballast)
     mm_spec = A['moving_mass']
-    m_move = mm_spec['mass_g'] / 1000
+    m_neutral = RHO_WATER * vol_disp - m_dry                      # moving mass that makes the robot neutral
+    m_move = round(m_neutral, 3) if mm_spec['mass_g'] == 'neutral' else mm_spec['mass_g'] / 1000
     move_pos = np.array(mm_spec['center_mm'], float) / 1000       # center of its travel
     half_travel = mm_spec['travel_mm'] / 2000                     # ± around the center
     m_total = m_dry + m_move
     com = (m_dry * com_dry + m_move * move_pos) / m_total         # moving mass at the center of its travel
     bg = cob[2] - com[2]                                          # CoM below CoB
     buoyancy_pct = (RHO_WATER * vol_disp / m_total - 1) * 100     # + = floats
-    m_neutral = RHO_WATER * vol_disp - m_dry                      # moving mass that makes the robot neutral
+    # position of the moving mass along the axis that puts the CoM right under the CoB (robot level), + = forward
+    level_pos = -(m_total * cob[1] - m_dry * com_dry[1]) / m_move - move_pos[1]
     rest_pitch = np.degrees(np.arctan2(com[1] - cob[1], bg))      # + = CoM behind the CoB → nose up at rest
 
     def balance(m):
@@ -251,20 +258,24 @@ def main():
     L.append('| Quantity | Value |\n| --- | --- |')
     L.append(f'| Displaced volume | {vol_disp * 1e3:.2f} L (' + ', '.join(f'{n} {v * 1e3:.2f}' for n, v, _ in hull[:3]) + f', parts outside the hull {sum(v for _, v, _ in hull[3:]) * 1e3:.2f}) → the water pushes up with the weight of {vol_disp * 1e3:.2f} kg |')
     L.append(f'| Structure | {m_dry:.2f} kg |')
-    L.append(f'| Moving mass (current) | {m_move * 1000:.0f} g, on the tube axis |')
-    L.append(f'| Total mass | {m_total:.2f} kg → buoyancy **{buoyancy_pct:+.0f} %** of the weight ({"floats" if buoyancy_pct > 0 else "sinks"}) |')
+    L.append(f'| Moving mass (current) | {m_move * 1000:.0f} g, on the tube axis{" (set to the neutral value)" if mm_spec["mass_g"] == "neutral" else ""} |')
+    L.append(f'| Total mass | {m_total:.2f} kg → buoyancy **{buoyancy_pct:+.0f} %** of the weight ({"neutral" if abs(buoyancy_pct) < 0.5 else "floats" if buoyancy_pct > 0 else "sinks"}) |')
     L.append(f'| Moving mass for neutral buoyancy | **{m_neutral * 1000:.0f} g** |')
     L.append(f'| Center of buoyancy (CAD) | {mm(cob)} mm |')
     L.append(f'| Center of mass (CAD), moving mass centered | {mm(com)} mm |')
     L.append(f'| CoM below CoB (BG) | {bg * 1000:.1f} mm → righting moment {m_total * G * bg:.2f} N·m/rad |')
-    L.append(f'| CoM behind the CoB | {(com[1] - cob[1]) * 1000:.1f} mm → resting pitch {rest_pitch:+.1f}° (+ = nose up) with the moving mass centered |\n')
+    L.append(f'| CoM behind the CoB | {(com[1] - cob[1]) * 1000:.1f} mm → resting pitch {rest_pitch:+.1f}° (+ = nose up) with the moving mass centered |')
+    L.append(f'| Moving mass position for a level robot | {level_pos * 1000:.0f} mm forward of the tube center ({"within" if abs(level_pos) <= half_travel else "**outside**"} its ±{half_travel * 1000:.0f} mm travel) |\n')
     L.append('The structure masses are estimates (CAD volume × assumed material), so the buoyancy is uncertain: '
              'weighing the robot is the best way to confirm it.\n')
     L.append('## Moving mass (pitch)\n')
     L.append(f'Travel: {mm_spec["travel_mm"]} mm along the tube axis (±{half_travel * 1000:.0f} mm), speed {mm_spec["speed_mm_s"]} mm/s (estimate). '
              'The maximum static pitch is reached with the mass at one end of its travel (submerged robot): tan θ = m·d / (M·BG).\n')
     L.append('| Moving mass | Total mass | Buoyancy | BG | Maximum static pitch |\n| --- | --- | --- | --- | --- |')
-    for m, label in [(m_move, f'{m_move * 1000:.0f} g (current)'), (0.5, '500 g'), (1.0, '1000 g'), (m_neutral, f'{m_neutral * 1000:.0f} g (neutral)')]:
+    cases = [(0.1, '100 g'), (0.5, '500 g'), (1.0, '1000 g'), (m_neutral, f'{m_neutral * 1000:.0f} g (neutral)')]
+    if abs(m_move - m_neutral) > 0.002:
+        cases.insert(0, (m_move, f'{m_move * 1000:.0f} g (current)'))
+    for m, label in cases:
         mt, b, bp, pmax = balance(m)
         L.append(f'| {label} | {mt:.2f} kg | {bp:+.0f} % | {b * 1000:.1f} mm | ±{pmax:.0f}° |')
     L.append('')

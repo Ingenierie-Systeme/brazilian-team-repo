@@ -17,7 +17,7 @@ This document describes the robot (from its CAD model) and how the Unity simulat
 | Hull | acrylic tube Ø110/100 mm × 400 mm, closed by two caps |
 | Front | transparent dome (hemisphere Ø114 mm) with the camera |
 | Inside | two rails carrying the trays: Raspberry Pi 4 + Navigator board (IMU, magnetometer) on top, battery below |
-| Moving mass | a weight that slides along the tube axis (vertically and laterally centered) over 300 mm (the tube length minus 50 mm at each end). Its weight is adjustable: it starts at 100 g and the team adds weight as needed. How it is driven is not known; the CAD shows an HS-5496MH servo with a horn, a rod and a carriage at the front of the tube, kept in the simulation as a static visual |
+| Moving mass | a weight that slides along the tube axis (vertically and laterally centered) over 300 mm (the tube length minus 50 mm at each end). Its weight is adjustable; the simulation uses the weight that makes the robot neutral (714 g). How it is driven is not known; the CAD shows an HS-5496MH servo with a horn, a rod and a carriage at the front of the tube, kept in the simulation as a static visual |
 | Tail drive | clamp around the rear cap, V-shaped support, Hitec D955TW servo in a waterproof housing, vertical axis 325 mm behind the tube center, arm to the fin |
 | Tail fin | vertical plate 160 × 120 mm (191.5 cm²), 5 mm thick |
 | Dorsal fin | fixed quarter disc R 75 mm (42 cm²) on top of the rear cap, stabilizer |
@@ -30,11 +30,11 @@ The pressure sensor and the GNSS antenna exist on the robot but are not in the C
 | Quantity | Value | Consequence |
 | --- | --- | --- |
 | Displaced volume | 4.71 L | the water pushes the robot up with the weight of 4.71 kg |
-| Estimated structure mass | 2.43 kg (CAD volume × assumed material, see the assumptions) | with the moving mass at 100 g (2.53 kg) the robot **floats strongly (+86 %)**: about half of the hull stays out of the water |
-| Moving mass for neutral buoyancy | **≈ 2.28 kg** | the team will have to add weight to the moving mass to dive (or the real parts are heavier than estimated: **weighing the robot** is the most useful measurement) |
-| Center of mass of the structure | 31 mm behind and 6 mm below the center of buoyancy (the tail servo is heavy and at the rear) | submerged, the robot tends to raise its nose; the moving mass must sit slightly forward to keep it level (≈ 3 cm forward with 2.28 kg) |
-| Moving-mass authority | with 2.28 kg, moving it to an end of its travel (±150 mm) tilts the robot up to ±88° | a few centimetres of travel are enough to tilt the robot by tens of degrees; the depth controller will use only a small part of the travel |
-| Center of mass below the center of buoyancy | 2.8 mm (2.28 kg) to 6.4 mm (100 g) | weak self-righting: the robot rolls and tilts easily |
+| Structure mass | **4.0 kg** (team estimate). The parts of the CAD (volume × assumed material) explain 2.43 kg; the remaining 1.57 kg is placed at the tube center, on the axis (battery, electronics and cables are there) | – |
+| Moving mass for neutral buoyancy | **714 g**: the simulation uses this weight | the robot is neutral (4.71 kg) and stays at its depth; **weighing the robot** remains the most useful measurement |
+| Center of mass of the structure | 18 mm behind and 4 mm below the center of buoyancy (the tail servo is heavy and at the rear) | submerged, the robot tends to raise its nose; the moving mass rests 92 mm forward of the tube center to keep it level, which leaves 58 mm of travel forward and 242 mm backward |
+| Moving-mass authority | with 714 g, about 11 mm of displacement tilts the robot by 30° at rest | a few centimetres of travel are enough to tilt the robot by tens of degrees; the depth controller will use only a small part of the travel |
+| Center of mass below the center of buoyancy | 2.8 mm (neutral) | weak self-righting: the robot rolls and tilts easily |
 
 ## 3. Simulation model
 
@@ -62,10 +62,10 @@ Local axes: forward = −X, up = +Y, right = +Z; origin = tube center. The physi
 
 ### 3.1 Mass properties
 
-- **Structure** (every part except the moving mass): `structureMass` = 2.43 kg, `structureCenterOfMass`, `structureInertia` (about its own center of mass, including the added inertia of the water in pitch and yaw), all from the CAD report.
-- **Moving mass** on the tube axis: `movingMass` (default **0.1 kg**, adjustable like on the real robot), at `movingMassPosition` (+ = forward).
+- **Structure** (every part except the moving mass): `structureMass` = 4.0 kg, `structureCenterOfMass`, `structureInertia` (about its own center of mass, including the added inertia of the water in pitch and yaw), all from the CAD report.
+- **Moving mass** on the tube axis: `movingMass` (default **0.714 kg**, the weight that makes the robot neutral), at `movingMassPosition` (+ = forward).
 - Every step, the total mass, the center of mass and the inertia (parallel-axis theorem) are recomputed from both. The **buoyancy is a result**: `buoyancyPercent` (Debug) = water pushed up / weight − 1.
-- **Rest position:** with `levelAtRest` (default), the rest position of the moving mass is computed at start so that the submerged robot rests level (moving mass placed so that the center of mass is under the center of buoyancy, clamped to the travel), as an operator would adjust it. With 2.28 kg it is 3.2 cm forward; with 100 g the robot would need the mass 79 cm forward, so it stays at the front end (this only matters if the robot is submerged).
+- **Rest position:** with `levelAtRest` (default), the rest position of the moving mass is computed at start so that the submerged robot rests level (moving mass placed so that the center of mass is under the center of buoyancy, clamped to the travel), as an operator would adjust it. With 714 g it is 92 mm forward of the tube center.
 - **Command:** `pitchCommand` 0 = rest position, +1 = front end (nose down), −1 = back end (nose up); the mass moves at `movingMassSpeed` (50 mm/s, estimate).
 
 ### 3.2 Buoyancy
@@ -153,7 +153,7 @@ The detailed prefab uses the CAD parts converted by `Tools/cad_analysis/cad_to_u
 `RobotFishVisual` (`Assets/AUV/Scripts/RobotFishVisual.cs`) moves two parts every frame from the state of `RobotFishPhysics` (it only moves visuals; the physics does not depend on it):
 
 - **Moving mass**: a square carriage (50 × 50 mm, orange) with a metal weight on top (40 × 40 × 15 mm, steel), like on the real robot, on the tube axis. Its size is fixed: the weight set in `movingMass` only matters for the physics.
-  - **Exaggerated display (default, `movingMassDisplay`).** Near neutral buoyancy, the center of mass is only a few millimetres below the center of buoyancy, so a few millimetres of moving mass already tilt the robot by tens of degrees (3.5 mm ≈ 30° with 2.28 kg) and the real motion cannot be seen. The displayed offset from the rest position is therefore scaled up: the displayed mass reaches the end of the tube when the robot, at rest, would be pitched by `referencePitch` (45°). From the static balance about the center of buoyancy, tan θ = (m · Δx / M) / BG, so the real offset for 45° is Δx_ref = M · BG · tan 45° / m (about 6 mm with 2.28 kg: the display scale is then about 20). The mass moves first and the nose follows, as on the real robot. The scale is never below 1, and the Inspector shows it (`displayScale`). **Only the visual is scaled; the physics uses the real position.**
+  - **Exaggerated display (default, `movingMassDisplay`).** Near neutral buoyancy, the center of mass is only a few millimetres below the center of buoyancy, so a few millimetres of moving mass already tilt the robot by tens of degrees (11 mm ≈ 30° with 714 g) and the real motion cannot be seen. The displayed offset from the rest position is therefore scaled up: the displayed mass reaches the end of the tube when the robot, at rest, would be pitched by `referencePitch` (45°). From the static balance about the center of buoyancy, tan θ = (m · Δx / M) / BG, so the real offset for 45° is Δx_ref = M · BG · tan 45° / m (about 18 mm with 714 g; the free travel ahead of the rest position is 58 mm, so the display scale is about 3). The mass moves first and the nose follows, as on the real robot. The scale is never below 1, and the Inspector shows it (`displayScale`). **Only the visual is scaled; the physics uses the real position.**
   - `Realistic` shows the real position.
 - **Tail**: the servo hub, the arm and the fin turn together about the vertical servo axis with `finAngle`.
 
@@ -179,7 +179,7 @@ All visuals are on the **`Robot` layer**, which the robot's camera (`Sensors/RGB
 
 ### 5.1 Tail flapping
 
-Open-loop tests in `Basin_Grid` with `RobotFishDetailed`, neutral robot (moving mass 2.282 kg), starting from rest at 2.5 m depth. For each frequency and amplitude, the speed is measured between 7 and 12 s (steady state).
+Open-loop tests in `Basin_Grid` with `RobotFishDetailed`, neutral robot (structure 4.0 kg, moving mass 714 g), starting from rest at 2.5 m depth. For each frequency and amplitude, the speed is measured between 7 and 12 s (steady state).
 
 ![Swimming speed and servo load against the flapping frequency](images/tail_flapping_sweep.png)
 
@@ -188,9 +188,9 @@ Open-loop tests in `Basin_Grid` with `RobotFishDetailed`, neutral robot (moving 
 | 0.5 Hz | 0.11 m/s | 0.22 m/s | 0.29 m/s |
 | 1.0 Hz | 0.27 m/s | 0.47 m/s | 0.61 m/s |
 | 1.5 Hz | 0.43 m/s | **0.72 m/s** (cruise) | 0.90 m/s |
-| 2.0 Hz | 0.59 m/s | 0.95 m/s | 1.15 m/s (real amplitude 42°) |
-| 2.5 Hz | 0.75 m/s | 1.17 m/s (27°) | 1.17 m/s (30°) |
-| 3.0 Hz | 0.91 m/s | 1.14 m/s (23°) | 1.14 m/s (28°) |
+| 2.0 Hz | 0.59 m/s | 0.96 m/s | 1.16 m/s (real amplitude 41°) |
+| 2.5 Hz | 0.75 m/s | 1.18 m/s (28°) | 1.18 m/s (28°) |
+| 3.0 Hz | 0.91 m/s | 1.14 m/s (25°) | 1.15 m/s (31°) |
 
 - **Speed** grows with frequency and amplitude. The cruise flapping (1.5 Hz, 30°) gives 0.72 m/s, about 0.9 body length per second (the robot is 0.81 m long), in the usual range of robot fish.
 - **Strouhal number** St = f · (trailing-edge peak-to-peak) / U between 0.37 and 0.55. Fish swim at 0.2–0.4; robot fish, less efficient, usually somewhat higher.
@@ -206,23 +206,23 @@ Open-loop tests in `Basin_Grid` with `RobotFishDetailed`, neutral robot (moving 
 
 | Bias | Yaw rate | Turning radius | Speed |
 | --- | --- | --- | --- |
-| 5° | 7°/s | 5.8 m | 0.71 m/s |
-| 10° | 12°/s | 3.4 m | 0.72 m/s |
+| 5° | 7°/s | 6.1 m | 0.71 m/s |
+| 10° | 13°/s | 3.3 m | 0.72 m/s |
 | 20° | 16°/s | 2.5 m | 0.69 m/s |
 
 **Roll resonance (important for the real robot).** The roll of the robot has a natural frequency close to the flapping frequencies: when neutral, the righting moment in roll is only W · BG ≈ 0.13 N·m/rad (BG = 2.8 mm) and the roll inertia ≈ 0.0045 kg·m², which gives about 0.9 Hz. Flapping near this frequency makes the robot roll, and a rolled robot turns part of the side force of the fin into a vertical force: during the development of the model, before the fin was split in rows (no roll damping from the fin), the robot rolled by ±8–10° and dived by about 1 m in 5 s while swimming. On the real robot, a strong roll or a depth drift that depends on the flapping frequency would come from this; placing the moving mass or other heavy parts lower in the tube (larger BG) moves the resonance up.
 
 ### 5.2 Mass, buoyancy, moving mass (SimpleThrust model)
 
-Scripted tests in `Basin_Grid` with `RobotFishDetailed`, commands published by a ROS 2 node at 20 Hz, made with the `SimpleThrust` model (fixed rudder + forward force).
+Scripted tests in `Basin_Grid` with `RobotFishDetailed`, commands published by a ROS 2 node at 20 Hz, made with the `SimpleThrust` model (fixed rudder + forward force) and the **previous mass estimate** (structure 2.43 kg from the CAD only). The robot now weighs 4.0 kg with a 714 g moving mass: the neutral case below has the same total mass and buoyancy, the moving mass simply rests further forward and needs about 3 times more travel for the same tilt.
 
-**Moving mass 100 g (default, as on the real robot today), no command:**
+**Moving mass 100 g (previous estimate), no command:**
 
 | Test | Result |
 | --- | --- |
 | Released at 2.5 m depth | rises quickly (up to 0.5 m/s), gliding forward while rising (≈ 4 m), and floats with 54 % of its volume under water (+86 % buoyancy), level |
 
-**Moving mass 2.28 kg (neutral buoyancy):**
+**Moving mass 2.28 kg (neutral buoyancy with the previous estimate):**
 
 | Test | Result |
 | --- | --- |
@@ -241,16 +241,16 @@ The ±88° pitch matches the prediction of the CAD analysis: the full travel of 
 
 **Keyboard** (no ROS needed): open the Unity Hub (on this computer through the NVIDIA GPU: `__NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia unityhub &`), open the project, open `Assets/TestBasin/Scenes/Basin_Grid.unity`.
 
-1. **As the robot is today (moving mass 100 g):** press Play and click the Game view: the robot rises to the surface and floats.
-2. **Neutral robot:** stop Play, select `RobotFishDetailed` in the Hierarchy, set `Moving Mass` to `2.282` in `Robot Fish Physics`, press Play and click the Game view. The robot stays level at its depth.
+1. Press Play and click the Game view: the robot (neutral) stays level at its depth.
+2. To see a floating robot, stop Play, select `RobotFishDetailed` in the Hierarchy, set `Moving Mass` to a smaller value (e.g. `0.1`) in `Robot Fish Physics` and press Play: it rises to the surface. Set it back to 0.714 afterwards (or do not save the scene).
 3. Hold **Space**: the tail flaps (1.5 Hz, 30°) and the robot accelerates to about 0.7 m/s in a few seconds, swinging a little in yaw with each stroke.
 4. Keep Space and hold **D** (or **A**): the fin flaps around a 30° bias and the robot turns right (left). Release: it goes straight.
 5. Keep Space and tap **W** briefly: the moving mass goes forward, the nose goes down and the robot dives; **S** makes it climb. Holding W or S for long brings the mass to the end of its travel and the robot becomes vertical. Release: the mass goes back to its rest position and the robot levels. In the Scene view (or with the free camera, **C**) the moving mass (orange carriage with its metal weight) can be seen sliding inside the transparent hull (exaggerated display, section 4).
 6. Release everything: it glides and stops.
 
-Set `Moving Mass` back to 0.1 afterwards (or do not save the scene). The `Debug` section of `Robot Fish Physics` (Inspector) shows the mass, the buoyancy in %, the submerged fraction, the forward speed, the fin angle, the flapping state, the tail thrust, the moment on the servo, the Strouhal number and the moving-mass position. To compare with the previous model, set `Propulsion` to `SimpleThrust`.
+The `Debug` section of `Robot Fish Physics` (Inspector) shows the mass, the buoyancy in %, the submerged fraction, the forward speed, the fin angle, the flapping state, the tail thrust, the moment on the servo, the Strouhal number and the moving-mass position. To compare with the previous model, set `Propulsion` to `SimpleThrust`.
 
-**From ROS 2** (with `Moving Mass` = 2.282, as in step 2):
+**From ROS 2:**
 
 **Terminal 1: ROS-TCP-Endpoint** (workspace with the endpoint, see [AUV_Sensors.md](AUV_Sensors.md#5-running-with-ros-2) to create it once):
 

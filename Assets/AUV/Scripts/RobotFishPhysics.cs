@@ -42,12 +42,12 @@ public class RobotFishPhysics : MonoBehaviour
     // The robot carries no ballast: its mass is the structure (every part, estimated from the CAD) plus the
     // moving mass. Its buoyancy is therefore a result, not a setting (see Docs/RobotFish_CAD_Report.md).
     [Header("Structure (everything except the moving mass, Docs/RobotFish_CAD_Report.md)")]
-    [Tooltip("Mass of the structure: hull, electronics, battery, servos, fins [kg] (estimate from the CAD).")]
-    public float structureMass = 2.432f;
+    [Tooltip("Mass of the structure: hull, electronics, battery, servos, fins [kg] (team estimate: about 4 kg; the part of it not explained by the CAD is placed at the tube center).")]
+    public float structureMass = 4.000f;
     [Tooltip("Center of mass of the structure, local axes [m].")]
-    public Vector3 structureCenterOfMass = new Vector3(0.0390f, -0.0080f, 0f);
+    public Vector3 structureCenterOfMass = new Vector3(0.0237f, -0.0049f, 0f);
     [Tooltip("Principal moments of inertia of the structure about its own center of mass, local axes x (roll), y (yaw), z (pitch), including the added inertia of the water [kg·m²].")]
-    public Vector3 structureInertia = new Vector3(0.0044f, 0.1307f, 0.1309f);
+    public Vector3 structureInertia = new Vector3(0.0044f, 0.1322f, 0.1324f);
 
     // ------------------------------------------------------------------ hull geometry (displaced volume)
     [Header("Hull geometry (CAD)")]
@@ -117,8 +117,8 @@ public class RobotFishPhysics : MonoBehaviour
 
     // ------------------------------------------------------------------ moving mass
     [Header("Moving mass (pitch)")]
-    [Tooltip("Weight that slides along the tube axis [kg]. Adjustable on the real robot: starts at 0.1 kg, more is added as needed (about 2.3 kg makes the robot neutral).")]
-    public float movingMass = 0.1f;
+    [Tooltip("Weight that slides along the tube axis [kg]. Adjustable on the real robot; set to the weight that makes the robot neutral (0.714 kg with a 4 kg structure).")]
+    public float movingMass = 0.714f;
     [Tooltip("Travel from the tube center to each end [m] (tube length minus 5 cm at each end: ±0.15 m).")]
     public float movingMassTravel = 0.15f;
     [Tooltip("Speed of the moving mass [m/s] (estimate: the actuator is not known).")]

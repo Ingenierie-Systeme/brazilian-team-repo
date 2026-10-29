@@ -13,6 +13,7 @@ The CAD is not stored in this repository (the meshes are large; `rpi_navigator.s
 
 - Position of every part (forward kinematics of the URDF, all joints at 0), its volume, centroid and inertia (exact integration over the closed mesh).
 - Mass budget: CAD volume × assumed density, or datasheet mass, for each part (`assumptions.yaml`).
+- Optional total mass of the structure given by the team (`structure_mass_target`): the difference with the parts is added as one mass at a given point. The moving mass can be set to `neutral` (`moving_mass.mass_g`): the script then uses the weight that makes the robot neutral.
 - Displaced volume (hull envelope + parts outside the hull), centers of buoyancy and mass, buoyancy of the robot for several weights of the moving mass and the weight that makes it neutral (the robot carries no ballast).
 - Pitch authority of the moving mass, inertia (with the added inertia of the water), tail and dorsal fin geometry.
 

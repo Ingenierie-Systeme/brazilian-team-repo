@@ -38,13 +38,21 @@ extra_masses:
   # Cables, screws, o-rings, connectors; placed at the tube center.
   cables_and_screws: {mass: 100, at: [0, 0, 0], status: estimate}
 
+# Total mass of the structure (everything except the moving mass) given by the team: about 4 kg, more than the
+# CAD estimate above. The difference is added at the tube center, on the axis (battery, electronics and cables are
+# there), as one "unaccounted" mass. Remove this block once the parts are weighed.
+structure_mass_target:
+  mass_g: 4000
+  at: [0, 0, 0]
+  status: team estimate (2026-10-29)
+
 # The robot carries no ballast: only the parts above and the moving mass below (team, 2026-10-28).
 
 # Moving mass (pitch control): a weight that slides along the tube axis (vertically and laterally centered).
-# Its weight is adjustable: it starts at 100 g and the team adds weight as needed. How it is driven is not known
+# Its weight is adjustable; it is set to the weight that makes the robot neutral. How it is driven is not known
 # (the HS-5496MH servo and carriage of the CAD are kept only as a visual).
 moving_mass:
-  mass_g: 100                   # current weight (team: starts at 100 g, more can be added)
+  mass_g: neutral               # weight that makes the robot neutral (team, 2026-10-29); or a value in g
   center_mm: [0, 0, 0]          # CAD frame (x lateral, y long axis, z up): on the tube axis, centered
   travel_mm: 300                # total travel along the axis: tube length (400 mm) minus 50 mm at each end
   speed_mm_s: 50                # carriage speed (estimate: actuator unknown)

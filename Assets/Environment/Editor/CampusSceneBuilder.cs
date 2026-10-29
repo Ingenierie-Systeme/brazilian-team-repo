@@ -503,12 +503,10 @@ public static class CampusSceneBuilder
 
     static CameraTour.Waypoint WP(Vector3 p, Vector3 look, float d) => new CameraTour.Waypoint { position = p, lookAt = look, duration = d };
 
-    // In this presentation scene the robot is neutral (moving mass 2.28 kg), so it stays submerged and can be driven
+    // The robot is neutral by default (moving mass set to the neutral weight), so it stays submerged and can be driven
     static void SetupRobot()
     {
         var physics = Object.FindAnyObjectByType<RobotFishPhysics>();
-        physics.movingMass = 2.282f;
-        EditorUtility.SetDirty(physics);
         var log = physics.GetComponent<GroundTruthLogger>();
         if (log != null) Object.DestroyImmediate(log);                // no ground-truth files from presentations
     }
