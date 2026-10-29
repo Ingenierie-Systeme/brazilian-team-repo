@@ -243,7 +243,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SimulationCamera
   mode: 0
   toggleKey: 17
-  target: {fileID: 1940930276}
+  target: {fileID: 1165091971}
   targetLocalForward: {x: -1, y: 0, z: 0}
   distance: 2.5
   height: 0.8
@@ -251,6 +251,95 @@ MonoBehaviour:
   speed: 5
   fastMultiplier: 4
   lookSensitivity: 0.15
+--- !u!1001 &1165091969
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 1573355874673964933, guid: 59315f4682e78157aa125c947e0f8db9, type: 3}
+      propertyPath: m_Name
+      value: RobotFish
+      objectReference: {fileID: 0}
+    - target: {fileID: 5523075416485547628, guid: 59315f4682e78157aa125c947e0f8db9, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5523075416485547628, guid: 59315f4682e78157aa125c947e0f8db9, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 5523075416485547628, guid: 59315f4682e78157aa125c947e0f8db9, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -6
+      objectReference: {fileID: 0}
+    - target: {fileID: 5523075416485547628, guid: 59315f4682e78157aa125c947e0f8db9, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 0.7071068
+      objectReference: {fileID: 0}
+    - target: {fileID: 5523075416485547628, guid: 59315f4682e78157aa125c947e0f8db9, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5523075416485547628, guid: 59315f4682e78157aa125c947e0f8db9, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0.7071068
+      objectReference: {fileID: 0}
+    - target: {fileID: 5523075416485547628, guid: 59315f4682e78157aa125c947e0f8db9, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5523075416485547628, guid: 59315f4682e78157aa125c947e0f8db9, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5523075416485547628, guid: 59315f4682e78157aa125c947e0f8db9, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5523075416485547628, guid: 59315f4682e78157aa125c947e0f8db9, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 1573355874673964933, guid: 59315f4682e78157aa125c947e0f8db9, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1165091972}
+  m_SourcePrefab: {fileID: 100100000, guid: 59315f4682e78157aa125c947e0f8db9, type: 3}
+--- !u!1 &1165091970 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 1573355874673964933, guid: 59315f4682e78157aa125c947e0f8db9, type: 3}
+  m_PrefabInstance: {fileID: 1165091969}
+  m_PrefabAsset: {fileID: 0}
+--- !u!4 &1165091971 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 5523075416485547628, guid: 59315f4682e78157aa125c947e0f8db9, type: 3}
+  m_PrefabInstance: {fileID: 1165091969}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1165091972
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1165091970}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 04b683b8e6eb16b5389864d9b0d9c773, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GroundTruthLogger
+  sampleRate: 20
+  logOnStart: 1
+  outputFolder: 
+  filePrefix: groundtruth
+  distanceXZ: 0
+  samplesWritten: 0
+  currentFile: 
 --- !u!1001 &1539034437
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -343,111 +432,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 62e3d78954a5c572cb5ea9d24d31cfec, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TestBasin
---- !u!1001 &1940930274
-PrefabInstance:
-  m_ObjectHideFlags: 0
-  serializedVersion: 2
-  m_Modification:
-    serializedVersion: 3
-    m_TransformParent: {fileID: 0}
-    m_Modifications:
-    - target: {fileID: 4329121079565986334, guid: 30c9b181d8f52c49e82ab8934d4383c7, type: 3}
-      propertyPath: m_LocalPosition.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4329121079565986334, guid: 30c9b181d8f52c49e82ab8934d4383c7, type: 3}
-      propertyPath: m_LocalPosition.y
-      value: 3
-      objectReference: {fileID: 0}
-    - target: {fileID: 4329121079565986334, guid: 30c9b181d8f52c49e82ab8934d4383c7, type: 3}
-      propertyPath: m_LocalPosition.z
-      value: -6
-      objectReference: {fileID: 0}
-    - target: {fileID: 4329121079565986334, guid: 30c9b181d8f52c49e82ab8934d4383c7, type: 3}
-      propertyPath: m_LocalRotation.w
-      value: 0.7071068
-      objectReference: {fileID: 0}
-    - target: {fileID: 4329121079565986334, guid: 30c9b181d8f52c49e82ab8934d4383c7, type: 3}
-      propertyPath: m_LocalRotation.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4329121079565986334, guid: 30c9b181d8f52c49e82ab8934d4383c7, type: 3}
-      propertyPath: m_LocalRotation.y
-      value: 0.7071068
-      objectReference: {fileID: 0}
-    - target: {fileID: 4329121079565986334, guid: 30c9b181d8f52c49e82ab8934d4383c7, type: 3}
-      propertyPath: m_LocalRotation.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4329121079565986334, guid: 30c9b181d8f52c49e82ab8934d4383c7, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4329121079565986334, guid: 30c9b181d8f52c49e82ab8934d4383c7, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.y
-      value: 90
-      objectReference: {fileID: 0}
-    - target: {fileID: 4329121079565986334, guid: 30c9b181d8f52c49e82ab8934d4383c7, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 5065660735435721084, guid: 30c9b181d8f52c49e82ab8934d4383c7, type: 3}
-      propertyPath: m_Name
-      value: Submarine
-      objectReference: {fileID: 0}
-    m_RemovedComponents: []
-    m_RemovedGameObjects: []
-    m_AddedGameObjects: []
-    m_AddedComponents:
-    - targetCorrespondingSourceObject: {fileID: 5065660735435721084, guid: 30c9b181d8f52c49e82ab8934d4383c7, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 1940930278}
-    - targetCorrespondingSourceObject: {fileID: 5065660735435721084, guid: 30c9b181d8f52c49e82ab8934d4383c7, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 1940930277}
-  m_SourcePrefab: {fileID: 100100000, guid: 30c9b181d8f52c49e82ab8934d4383c7, type: 3}
---- !u!1 &1940930275 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 5065660735435721084, guid: 30c9b181d8f52c49e82ab8934d4383c7, type: 3}
-  m_PrefabInstance: {fileID: 1940930274}
-  m_PrefabAsset: {fileID: 0}
---- !u!4 &1940930276 stripped
-Transform:
-  m_CorrespondingSourceObject: {fileID: 4329121079565986334, guid: 30c9b181d8f52c49e82ab8934d4383c7, type: 3}
-  m_PrefabInstance: {fileID: 1940930274}
-  m_PrefabAsset: {fileID: 0}
---- !u!114 &1940930277
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1940930275}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 04b683b8e6eb16b5389864d9b0d9c773, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::GroundTruthLogger
-  sampleRate: 20
-  logOnStart: 1
-  outputFolder: 
-  filePrefix: groundtruth
-  distanceXZ: 0
-  samplesWritten: 0
-  currentFile: 
---- !u!114 &1940930278
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1940930275}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 984f86bc3a24519dd98ef31fa675f984, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SubmarineWaterLevelSync
-  basin: {fileID: 1539034438}
 --- !u!1 &1980286053
 GameObject:
   m_ObjectHideFlags: 0
@@ -552,4 +536,4 @@ SceneRoots:
   - {fileID: 1980286055}
   - {fileID: 1539034437}
   - {fileID: 1055953881}
-  - {fileID: 1940930274}
+  - {fileID: 1165091969}
