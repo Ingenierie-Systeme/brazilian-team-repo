@@ -76,3 +76,10 @@ Thumbs.db
 
 # Unity / Mono crash dumps
 mono_crash.*
+
+# ROS 2 & colcon
+log/
+build/
+install/
+__pycache__/
+*.egg-info/
