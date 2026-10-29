@@ -57,6 +57,8 @@ The robot actuators can be commanded from ROS 2 (`std_msgs/Float64`, normalized 
 
 The real robot has no ballast, so `/cmd/ballast` only helps to set up simulation tests. Without commands for 0.5 s the actuators stop and the keyboard takes over again. See [Docs/GNC.md](Docs/GNC.md) for the architecture and the status of the GNC work.
 
+**Heading control** (ROS 2 package `ros2_ws/src/gnc_control`): the node `heading_control` steers the robot to the heading published on `/guidance/heading` with the bias of the flapping (tilt-compensated magnetometer, heading averaged over one stroke, PI controller). Build it with `colcon build` in `ros2_ws`, start it with `ros2 launch gnc_control heading_control.launch.py`; see [Docs/GNC.md, section 5](Docs/GNC.md#5-step-2-heading-control).
+
 ## Project structure
 
 Unity assets are grouped by feature:
@@ -71,4 +73,6 @@ Docs/            documentation, images and media
 Tools/
 ├── cad_analysis/  physical properties of the robot from its CAD, CAD → Unity conversion (Python)
 └── scene_assets/  logo and sign textures of the campus scene (Python)
+ros2_ws/
+└── src/gnc_control/  ROS 2 GNC nodes (Python): heading control
 ```
