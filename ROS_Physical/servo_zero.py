@@ -10,10 +10,9 @@ Controle simples de um servo Hitec HS-5496MH pela Navigator (Blue Robotics).
 import time
 
 import bluerobotics_navigator as navigator
-from bluerobotics_navigator import PwmChannel
 
 # ---------------- Configuração ----------------
-CANAL = PwmChannel.Ch1   # saída PWM da Navigator onde o servo está ligado (1 a 16)
+CANAL = 0  # saída PWM da Navigator onde o servo está ligado (1 a 16)
 FREQ_HZ = 50             # frequência padrão de servo: um pulso a cada 20 ms
 ZERO_US = 1500           # largura de pulso do "zero" (neutro/centro do servo)
 MIN_US = 1000            # limite inferior seguro (alargue aos poucos depois de testar)
