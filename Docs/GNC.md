@@ -31,7 +31,7 @@ Navigation, guidance and control run as ROS 2 nodes; the Unity simulation is the
 | 1 | Actuator command interface (Unity side) | done |
 | 1b | Robot fish model from the CAD: mass, buoyancy, water drag, moving mass, tail and dorsal fins ([RobotFish_Model.md](RobotFish_Model.md)) | done |
 | 1c | Tail flapping propulsion and tail commands (frequency, amplitude, bias) ([RobotFish_Model.md](RobotFish_Model.md#35-tail-flapping-propulsion)) | done |
-| 2 | Heading control | planned |
+| 2 | Heading control: ROS 2 package `gnc_control`, node `heading_control` (section 5) | done |
 | 3 | Navigation node | planned |
 | 4 | Depth control | planned |
 | 5 | Guidance (setpoints, waypoints, mission) | planned |
@@ -156,3 +156,126 @@ The physics of the robot fish is described in [RobotFish_Model.md](RobotFish_Mod
 - **Servo limits:** above about 2 Hz at 30° the servo can no longer follow the commanded amplitude, and beyond 2.5 Hz the water moment exceeds its stall torque. The controllers should stay within this range.
 - **Roll and depth with flapping:** the flapping makes the robot roll a few degrees and, at high speed, climb slowly (the thrust acts below the center of mass); the depth controller compensates with the moving mass.
 - **Unknown buoyancy:** it depends on the real masses and on the weight added to the moving mass (the simulation uses the neutral weight, 714 g). The controllers must work for a neutral robot and for a slightly floating one.
+
+## 5. Step 2: heading control
+
+The node `heading_control` (package `ros2_ws/src/gnc_control`, Python, `rclpy`) makes the robot follow a heading setpoint while it swims. The flapping (frequency and amplitude) is kept constant; the node steers with the **bias** of the flapping.
+
+### 5.1 Interface
+
+| Direction | Topic | Type | Content |
+| --- | --- | --- | --- |
+| in | `/guidance/heading` | `std_msgs/Float64` | heading setpoint [deg, clockwise from true north]. Until the first message, the node holds the heading it measures at start |
+| in | `/imu/mag` | `sensor_msgs/MagneticField` | magnetometer |
+| in | `/imu/data` | `sensor_msgs/Imu` | only roll and pitch of the orientation, for the tilt compensation of the magnetometer |
+| out | `/cmd/tail_frequency`, `/cmd/tail_amplitude`, `/cmd/tail_bias` | `std_msgs/Float64` | actuator commands (section 3), 20 Hz |
+| out | `/gnc/heading`, `/gnc/heading_error`, `/gnc/tail_bias` | `std_msgs/Float64` | measured heading (averaged) [deg], error [deg], fin bias [deg], for monitoring |
+
+If the magnetometer stops for 0.5 s, the node stops publishing and the simulator watchdog stops the flapping. Parameters: `ros2_ws/src/gnc_control/config/heading_control.yaml`.
+
+### 5.2 Design
+
+1. **Heading measurement.** Tilt-compensated compass: the magnetometer reading is rotated back to the level frame with the roll and pitch of the IMU, the heading is the direction of the horizontal field, plus the declination (−1° in Brest). The yaw of the IMU orientation is not used: in the simulation it is perfect, a real robot does not have it.
+2. **Stroke filter.** The heading swings with each stroke of the tail (±6° at 15°, ±10° at 30°). The controller must not try to cancel this swing, so the heading is averaged over exactly one flapping period (0.67 s at 1.5 Hz), which removes it with a small delay. Angles are averaged as unit vectors, so the average is right across 0/360°.
+3. **PI controller.** `bias = kp·error + ki·∫error dt`, error wrapped to (−180°, 180°] (the robot always turns the short way), bias limited to ±30° so that the fin keeps a useful flapping amplitude (it is limited to ±60°). Anti-windup by conditional integration: while the bias is saturated, the integral does not grow, so a large turn does not cause an overshoot. No derivative term: it would amplify what remains of the stroke swing; the water damps the yaw by itself.
+4. **Tuning from an identified model.** Bias steps in the simulation (flapping 1.5 Hz) show that the yaw rate settles in less than half a second at a value proportional to the bias: **yaw rate ≈ K · bias**, with K = 0.75 /s at 30° of amplitude and 0.40 /s at 15° (10° of bias → 7.5°/s and 4°/s). Seen by the controller, the robot is an integrator with the half-period delay of the filter. The gains were chosen by simulating this model with the stroke swing, the filter, the saturation and a constant drift: **kp = 1.0** (1° of error → 1° of bias), **ki = 0.02 /s**. The proportional term alone leaves less than 1° of error for the drift seen in the simulation; the small integral removes it without adding much overshoot.
+
+### 5.3 Results (simulation, closed loop through ROS 2)
+
+`Basin_Grid`, neutral robot, flapping 1.5 Hz. The "true" heading comes from the perfect IMU orientation, averaged over one stroke; it is used only to evaluate.
+
+![Square: four 90° heading steps](images/heading_control_square.png)
+
+![U-turns: two 180° heading steps](images/heading_control_uturn.png)
+
+| Test | Amplitude | Within ±5° of the target after | Overshoot | Error at the end of the segment | Residual swing (averaged heading) |
+| --- | --- | --- | --- | --- | --- |
+| Square, 4 steps of 90° | 15° (0.44 m/s) | 7.0–8.1 s | 1.0–4.8° | −0.9 to +2.9° | ±1.3–2.1° |
+| U-turns, 2 steps of 180° | 30° (0.71 m/s) | 7.8–8.1 s | 2.5–5.8° | +1.2 to +1.6° | ±2.7–3.5° |
+
+- The large turns are made with the bias saturated at 30°: about 12°/s at 15° of amplitude and 25°/s at 30°. The U-turn has a radius of about 1.6 m at 0.71 m/s.
+- The end of each turn is slower than the model predicted (time constant ≈ 1/(K·kp), 1.3 s at 30° and 2.5 s at 15°); kp could be raised a little at 30° of amplitude. The overshoot (up to 6°) is slightly larger than in the model (2°).
+- Unit tests (`ros2_ws/src/gnc_control/test/`): heading from the magnetometer with and without tilt, average across 0/360°, sign and short way of the error, saturation, anti-windup, and closed-loop steps of 30°, 90° and 180° on the identified model (24 tests).
+
+### 5.4 Running it
+
+**Once: build the workspace of this repository** (needs ROS 2 Jazzy):
+
+```bash
+source /opt/ros/jazzy/setup.bash
+cd <path to>/brazilian-team-repo/ros2_ws
+colcon build --symlink-install
+```
+
+**Unit tests** (no Unity needed):
+
+```bash
+source /opt/ros/jazzy/setup.bash
+cd <path to>/brazilian-team-repo/ros2_ws
+colcon test --packages-select gnc_control
+colcon test-result --verbose
+```
+
+**Terminal 1: ROS-TCP-Endpoint** (workspace with the endpoint, see [AUV_Sensors.md](AUV_Sensors.md#5-running-with-ros-2)):
+
+```bash
+source /opt/ros/jazzy/setup.bash
+export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
+cd ~/ros2_ws && source install/setup.bash
+ros2 run ros_tcp_endpoint default_server_endpoint --ros-args -p ROS_IP:=127.0.0.1
+```
+
+**Unity:** open `Assets/TestBasin/Scenes/Basin_Grid.unity`, press Play and click the Game view.
+
+**Terminal 2: heading controller** (the robot starts swimming and holds its heading):
+
+```bash
+source /opt/ros/jazzy/setup.bash
+export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
+cd <path to>/brazilian-team-repo/ros2_ws && source install/setup.bash
+ros2 launch gnc_control heading_control.launch.py
+```
+
+**Terminal 3: give a heading** (one at a time, Ctrl+C between them; the basin is small, so keep the robot away from the walls):
+
+```bash
+source /opt/ros/jazzy/setup.bash
+export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
+ros2 topic pub -r 2 /guidance/heading std_msgs/msg/Float64 "{data: 90.0}"    # east
+ros2 topic pub -r 2 /guidance/heading std_msgs/msg/Float64 "{data: 270.0}"   # west
+```
+
+**Terminal 4: watch it:**
+
+```bash
+source /opt/ros/jazzy/setup.bash
+export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
+ros2 topic echo /gnc/heading_error      # goes to about 0 after each turn; Ctrl+C
+```
+
+To stop the robot, stop the controller (Ctrl+C in terminal 2): without commands, the flapping stops after 0.5 s.
+
+**Scripted test** (the tests of section 5.3), instead of terminal 3: with the controller running (terminal 2, here with a 15° amplitude so that the square fits in the basin), the node `heading_test` publishes a sequence of setpoints and writes a CSV (time, setpoint, measured heading, true heading, bias):
+
+```bash
+source /opt/ros/jazzy/setup.bash
+export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
+cd <path to>/brazilian-team-repo/ros2_ws && source install/setup.bash
+ros2 run gnc_control heading_test --ros-args -p sequence:="0:8,90:12,180:12,270:12,0:12" -p output:=square.csv
+```
+
+with terminal 2 started as:
+
+```bash
+source /opt/ros/jazzy/setup.bash
+export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
+cd <path to>/brazilian-team-repo/ros2_ws && source install/setup.bash
+ros2 run gnc_control heading_control --ros-args --params-file src/gnc_control/config/heading_control.yaml -p cruise_amplitude_deg:=15.0
+```
+
+### 5.5 Limitations
+
+- The heading comes from the magnetometer, which in the simulation sees a uniform field. In the real basin, the steel structure and the electronics of the robot disturb it: a calibration (hard and soft iron) will be needed, and the navigation step (step 3) will combine the magnetometer with the gyroscope.
+- The speed is not controlled (constant flapping), and a large bias reduces the useful amplitude of the fin, so the robot slows down slightly in turns.
+- The gains were identified at 1.5 Hz with amplitudes of 15° and 30°; other flapping settings change K (section 5.2) and may need other gains.
+

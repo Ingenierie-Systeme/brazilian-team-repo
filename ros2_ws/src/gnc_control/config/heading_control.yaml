@@ -1,0 +1,18 @@
+# Parameters of the heading controller (gnc_control/heading_control_node.py). See Docs/GNC.md, step 2.
+heading_control:
+  ros__parameters:
+    # Flapping kept constant while the node steers (the speed is not controlled yet).
+    cruise_frequency_hz: 1.5       # 1.5 Hz with 30°: about 0.7 m/s
+    cruise_amplitude_deg: 30.0
+    # Must match RobotFishPhysics in Unity (maxTailFrequency, maxTailAngle): the commands are normalized by them.
+    max_tail_frequency_hz: 3.0
+    max_tail_angle_deg: 60.0
+    # PI gains, tuned on the yaw response identified in the simulation (Docs/GNC.md):
+    # 1° of heading error → 1° of fin bias; the small integral removes a constant drift.
+    kp: 1.0
+    ki: 0.02
+    max_bias_deg: 30.0             # bias limit: keeps a useful flapping amplitude on the fin (limit ±60°)
+    filter_window_s: 0.0           # heading averaged over this window; 0 = one flapping period
+    declination_deg: -1.0          # Brest: magnetic north about 1° west of true north
+    control_rate_hz: 20.0
+    sensor_timeout_s: 0.5          # no magnetometer for this long: stop publishing (the robot stops)

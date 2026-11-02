@@ -80,3 +80,8 @@ mono_crash.*
 # Python virtual environment of Tools/cad_analysis
 /Tools/cad_analysis/.venv/
 __pycache__/
+
+# ROS 2 workspace build outputs
+/ros2_ws/build/
+/ros2_ws/install/
+/ros2_ws/log/
