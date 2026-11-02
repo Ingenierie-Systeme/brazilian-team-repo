@@ -27,6 +27,7 @@ setup(
             'bar30_publisher = auv_hardware.bar30_publisher:main',
             'servo_subscriber = auv_hardware.servo_subscriber:main',
             'camera_publisher = auv_hardware.camera_publisher:main',
+            'imu_publisher = auv_hardware.imu_publisher:main',
         ],
     },
 )
