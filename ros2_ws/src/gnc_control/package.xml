@@ -3,7 +3,7 @@
 <package format="3">
   <name>gnc_control</name>
   <version>0.1.0</version>
-  <description>Control nodes of the robot fish (Brazilian Team, ENSTA): heading control with the tail fin bias.</description>
+  <description>Control nodes of the robot fish (Brazilian Team, ENSTA): heading control and tail oscillator of the real robot.</description>
   <maintainer email="pedrohaa.silva@gmail.com">pedrohaas</maintainer>
   <license>MIT</license>
 

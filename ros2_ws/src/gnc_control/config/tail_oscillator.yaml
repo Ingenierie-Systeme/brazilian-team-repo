@@ -1,0 +1,12 @@
+# Parameters of the tail oscillator of the real robot (gnc_control/tail_oscillator_node.py). See Docs/GNC.md, section 6.
+tail_oscillator:
+  ros__parameters:
+    # Must match RobotFishPhysics in Unity (maxTailFrequency, maxTailAngle): the commands are normalized by them.
+    max_tail_frequency_hz: 3.0
+    max_tail_angle_deg: 60.0
+    # TO MEASURE ON THE ROBOT. Fin angle reached with servo command 1 (2000 µs). 60 is only an assumption.
+    servo_range_deg: 60.0
+    # TO CHECK ON THE ROBOT. True if a positive command moves the fin to the left.
+    invert: false
+    rate_hz: 50.0                  # same rate as the servo PWM
+    command_timeout_s: 0.5         # no command for this long: fin to the center (same as the simulator)

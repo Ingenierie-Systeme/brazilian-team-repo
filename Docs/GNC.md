@@ -32,6 +32,7 @@ Navigation, guidance and control run as ROS 2 nodes; the Unity simulation is the
 | 1b | Robot fish model from the CAD: mass, buoyancy, water drag, moving mass, tail and dorsal fins ([RobotFish_Model.md](RobotFish_Model.md)) | done |
 | 1c | Tail flapping propulsion and tail commands (frequency, amplitude, bias) ([RobotFish_Model.md](RobotFish_Model.md#35-tail-flapping-propulsion)) | done |
 | 2 | Heading control: ROS 2 package `gnc_control`, node `heading_control` (section 5) | done |
+| 2b | Tail oscillator of the real robot and common topics of the simulation and the robot (section 6) | done, not yet tested on the robot |
 | 3 | Navigation node | planned |
 | 4 | Depth control | planned |
 | 5 | Guidance (setpoints, waypoints, mission) | planned |
@@ -279,3 +280,135 @@ ros2 run gnc_control heading_control --ros-args --params-file src/gnc_control/co
 - The speed is not controlled (constant flapping), and a large bias reduces the useful amplitude of the fin, so the robot slows down slightly in turns.
 - The gains were identified at 1.5 Hz with amplitudes of 15° and 30°; other flapping settings change K (section 5.2) and may need other gains.
 
+## 6. Step 2b: from the simulation to the real robot
+
+The GNC nodes must be the same in the simulation and on the robot. They differ only below the command topics: the simulator computes the flapping inside `RobotFishPhysics`, while the real servo only accepts the angle to reach at each instant. The node `tail_oscillator` fills this gap on the robot.
+
+```text
+                 heading_control, depth_control (planned)
+                                │
+      /cmd/tail_frequency, /cmd/tail_amplitude, /cmd/tail_bias, /cmd/pitch
+                 │                                      │
+            SIMULATION                             REAL ROBOT
+       RobotFishPhysics               tail_oscillator ──/servo/tail──► servo driver
+                                                   /cmd/pitch ───────► servo driver
+```
+
+### 6.1 Common topics
+
+All are `std_msgs/Float64`.
+
+| Topic | Range | Meaning | Simulation | Robot |
+| --- | --- | --- | --- | --- |
+| `/cmd/tail_frequency` | 0 … 1 | fraction of 3 Hz | `RobotFishPhysics` | `tail_oscillator` |
+| `/cmd/tail_amplitude` | 0 … 1 | fraction of 60° | `RobotFishPhysics` | `tail_oscillator` |
+| `/cmd/tail_bias` | −1 … 1 | fraction of 60°, + = fin to the right | `RobotFishPhysics` | `tail_oscillator` |
+| `/cmd/pitch` | −1 … 1 | moving mass, + = forward, nose down | `RobotFishPhysics` | servo driver |
+| `/servo/tail` | −1 … 1 | angle the tail servo must reach now, ±1 = ±500 µs around 1500 µs | not used | servo driver |
+| `/cmd/thrust`, `/cmd/rudder`, `/cmd/ballast` | see section 3 | keyboard-like shortcuts and test ballast | `RobotFishPhysics` | not used |
+
+Sign and range of `/cmd/pitch` on the robot still have to be checked (section 6.5): the simulation uses ±150 mm of travel, and the real travel is not known yet.
+
+### 6.2 Node `tail_oscillator`
+
+| Direction | Topic | Content |
+| --- | --- | --- |
+| in | `/cmd/tail_frequency`, `/cmd/tail_amplitude`, `/cmd/tail_bias` | flapping commands |
+| out | `/servo/tail` | servo command, 50 Hz |
+| out | `/gnc/fin_angle` | fin angle asked to the servo [deg], for monitoring |
+
+Parameters: `ros2_ws/src/gnc_control/config/tail_oscillator.yaml`. It uses only ROS messages, so it does not depend on the hardware and can be tested on any computer.
+
+### 6.3 Design
+
+- **Same law as the simulator:** `fin = bias + amplitude·sin(phase)`, limited to ±60°.
+- **Integrated phase:** `phase += 2π·frequency·dt`. With `sin(2π·f·t)`, each change of frequency would make the fin jump. The time step is measured, so a late timer does not change the frequency.
+- **50 Hz:** the rate of the servo PWM.
+- **Watchdog:** without commands for 0.5 s, the commands are forgotten, the fin returns to the center and the phase restarts at 0, so the next flapping starts from the bias.
+- **Stopping the node:** on Ctrl+C or SIGTERM, the node publishes the center once more.
+- **Servo scale:** `servo_range_deg` is the fin angle reached at command 1 and `invert` reverses the direction. The output is always limited to [−1, 1].
+
+The servo driver must have its own watchdog, because `tail_oscillator` cannot publish anything if it crashes, and the moving mass does not go through this node.
+
+### 6.4 Verification
+
+Unit tests (`ros2_ws/src/gnc_control/test/test_tail_oscillator.py`): waveform, frequency, bias, fin limit, no jump when the frequency changes, irregular timer, out-of-range values, NaN, watchdog, restart and servo scale.
+
+Test with ROS 2 on a laptop, without Unity or hardware: `heading_control` and `tail_oscillator` running together, a test node publishing a constant magnetometer reading and a setpoint 10° to the right, and recording `/servo/tail`.
+
+| Check | Result |
+| --- | --- |
+| Rate of `/servo/tail` | 50.0 Hz, 99 % of the intervals below 22 ms |
+| Flapping frequency (commanded: 1.5 Hz) | 1.50 Hz |
+| Amplitude around the bias (commanded: 30°) | ±30.0° |
+| Bias against `/gnc/tail_bias` | follows it (10.4° to 12.1° while the integral acts) |
+| `heading_control` stopped | fin at the center after about 0.5 s, the node keeps publishing |
+| `tail_oscillator` stopped (SIGINT, SIGTERM) | last message is the center |
+
+Not verified yet: the timing on the Raspberry Pi and the real servo.
+
+### 6.5 What to set on the robot
+
+With the fin free, out of the water:
+
+1. **Range:** command `/servo/tail` to 1.0, measure the fin angle and write it in `servo_range_deg`.
+2. **Direction:** with a positive command, the fin must go to the right, seen from above with the nose pointing forward. Otherwise set `invert: true`.
+3. **Moving mass:** command `/cmd/pitch` to a small positive value. The mass must move forward. Note the real travel at ±1.
+4. **Safe limits:** check that the fin and the mass do not hit anything at ±1 before running at full range.
+
+### 6.6 Running it
+
+**Once: build the workspace of this repository** (needs ROS 2 Jazzy):
+
+```bash
+source /opt/ros/jazzy/setup.bash
+cd <path to>/brazilian-team-repo/ros2_ws
+colcon build --symlink-install
+```
+
+**Unit tests** (no Unity or hardware needed):
+
+```bash
+source /opt/ros/jazzy/setup.bash
+cd <path to>/brazilian-team-repo/ros2_ws
+colcon test --packages-select gnc_control
+colcon test-result --verbose
+```
+
+**Terminal 1: tail oscillator:**
+
+```bash
+source /opt/ros/jazzy/setup.bash
+export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST   # remove on the robot if the commands come from another computer
+cd <path to>/brazilian-team-repo/ros2_ws && source install/setup.bash
+ros2 launch gnc_control tail_oscillator.launch.py
+```
+
+**Terminal 2: flapping frequency** (1.5 Hz = 0.5 × 3 Hz; keeps publishing until Ctrl+C):
+
+```bash
+source /opt/ros/jazzy/setup.bash
+export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
+ros2 topic pub -r 10 /cmd/tail_frequency std_msgs/msg/Float64 "{data: 0.5}"
+```
+
+**Terminal 3: flapping amplitude** (30° = 0.5 × 60°; keeps publishing until Ctrl+C):
+
+```bash
+source /opt/ros/jazzy/setup.bash
+export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
+ros2 topic pub -r 10 /cmd/tail_amplitude std_msgs/msg/Float64 "{data: 0.5}"
+```
+
+**Terminal 4: watch the result:**
+
+```bash
+source /opt/ros/jazzy/setup.bash
+export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
+ros2 topic hz /servo/tail                # about 50 Hz; Ctrl+C
+ros2 topic echo /gnc/fin_angle           # swings between −30° and +30°; Ctrl+C
+```
+
+Press Ctrl+C in terminals 2 and 3: after 0.5 s, `/gnc/fin_angle` stays at 0.
+
+The node does not command the simulator: to test the GNC in Unity, follow section 5.4 without `tail_oscillator`.

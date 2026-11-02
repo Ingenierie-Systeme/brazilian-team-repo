@@ -59,6 +59,8 @@ The real robot has no ballast, so `/cmd/ballast` only helps to set up simulation
 
 **Heading control** (ROS 2 package `ros2_ws/src/gnc_control`): the node `heading_control` steers the robot to the heading published on `/guidance/heading` with the bias of the flapping (tilt-compensated magnetometer, heading averaged over one stroke, PI controller). Build it with `colcon build` in `ros2_ws`, start it with `ros2 launch gnc_control heading_control.launch.py`; see [Docs/GNC.md, section 5](Docs/GNC.md#5-step-2-heading-control).
 
+**Tail oscillator** (same package, real robot only): the node `tail_oscillator` turns the flapping commands into the angle of the tail servo on `/servo/tail`, so the GNC nodes are the same in the simulation and on the robot. The common topics are listed in [Docs/GNC.md, section 6](Docs/GNC.md#6-step-2b-from-the-simulation-to-the-real-robot).
+
 ## Project structure
 
 Unity assets are grouped by feature:
@@ -74,5 +76,5 @@ Tools/
 ├── cad_analysis/  physical properties of the robot from its CAD, CAD → Unity conversion (Python)
 └── scene_assets/  logo and sign textures of the campus scene (Python)
 ros2_ws/
-└── src/gnc_control/  ROS 2 GNC nodes (Python): heading control
+└── src/gnc_control/  ROS 2 GNC nodes (Python): heading control, tail oscillator of the real robot
 ```
