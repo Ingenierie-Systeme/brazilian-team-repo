@@ -28,6 +28,7 @@ setup(
             'servo_subscriber = auv_hardware.servo_subscriber:main',
             'camera_publisher = auv_hardware.camera_publisher:main',
             'imu_publisher = auv_hardware.imu_publisher:main',
+            'teleop_controller = auv_hardware.teleop_controller:main',
         ],
     },
 )

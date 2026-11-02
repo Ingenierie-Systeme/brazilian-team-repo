@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
 ROS 2 Subscriber node for Blue Robotics Navigator PWM actuators.
-Controls 2 servos:
-  1. Tail / Rudder: /cmd/rudder -> PWM Channel 0
-  2. Internal sliding mass: /cmd/mass (or /cmd/pitch) -> PWM Channel 1
+Controls 2 motors:
+  1. Tail Motor (Thrust / Rudder combined): /cmd/thrust -> PWM Channel 0
+  2. Internal Sliding Mass: /cmd/mass -> PWM Channel 1
 """
 
 import time
@@ -14,8 +14,8 @@ from std_msgs.msg import Float64
 import bluerobotics_navigator as navigator
 
 # Channels (0 to 15 on Navigator)
-RUDDER_CHANNEL = 0   # Canal PWM da cauda (leme)
-MASS_CHANNEL = 1     # Canal PWM da massa móvel interna (pitch)
+THRUST_CHANNEL = 0   # Canal PWM do motor da cauda (nadadeira propulsora / leme)
+MASS_CHANNEL = 1     # Canal PWM do motor da massa móvel interna (pitch)
 
 # PWM Configuration (standard 50 Hz servo)
 FREQ_HZ = 50
@@ -36,15 +36,15 @@ class ServoSubscriber(Node):
         navigator.set_pwm_freq_hz(FREQ_HZ)
 
         # Place both servos at neutral (1500 us) before enabling outputs
-        self.move_servo(RUDDER_CHANNEL, ZERO_US)
+        self.move_servo(THRUST_CHANNEL, ZERO_US)
         self.move_servo(MASS_CHANNEL, ZERO_US)
         navigator.set_pwm_enable(True)
 
-        # 1. Subscriber for Tail / Rudder
-        self.sub_rudder = self.create_subscription(
+        # 1. Subscriber for Tail Motor (Thrust / Rudder)
+        self.sub_thrust = self.create_subscription(
             Float64,
-            '/cmd/rudder',
-            self.rudder_callback,
+            '/cmd/thrust',
+            self.thrust_callback,
             10
         )
 
@@ -55,18 +55,11 @@ class ServoSubscriber(Node):
             self.mass_callback,
             10
         )
-        # Alias: allows commanding via /cmd/pitch as well
-        self.sub_pitch = self.create_subscription(
-            Float64,
-            '/cmd/pitch',
-            self.mass_callback,
-            10
-        )
 
         self.get_logger().info(
             f'Actuator subscriber ready!\n'
-            f'  - Cauda (Rudder): canal {RUDDER_CHANNEL} no topico "/cmd/rudder"\n'
-            f'  - Massa (Pitch):  canal {MASS_CHANNEL} no topico "/cmd/mass" (ou "/cmd/pitch")'
+            f'  - Motor da Cauda: canal {THRUST_CHANNEL} no topico "/cmd/thrust"\n'
+            f'  - Motor da Massa: canal {MASS_CHANNEL} no topico "/cmd/mass"'
         )
 
     def move_servo(self, channel, pulse_us):
@@ -82,9 +75,9 @@ class ServoSubscriber(Node):
             return ZERO_US + val * (MAX_US - ZERO_US)
         return val
 
-    def rudder_callback(self, msg):
+    def thrust_callback(self, msg):
         target_us = self._calc_target_us(msg.data)
-        self.move_servo(RUDDER_CHANNEL, target_us)
+        self.move_servo(THRUST_CHANNEL, target_us)
 
     def mass_callback(self, msg):
         target_us = self._calc_target_us(msg.data)
@@ -92,7 +85,7 @@ class ServoSubscriber(Node):
 
     def shutdown(self):
         self.get_logger().info('Returning both servos to zero and disabling PWM...')
-        self.move_servo(RUDDER_CHANNEL, ZERO_US)
+        self.move_servo(THRUST_CHANNEL, ZERO_US)
         self.move_servo(MASS_CHANNEL, ZERO_US)
         time.sleep(0.5)
         navigator.set_pwm_enable(False)
