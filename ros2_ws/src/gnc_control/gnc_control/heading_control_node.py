@@ -37,7 +37,7 @@ class HeadingControlNode(Node):
         self.rate = p('control_rate_hz', 20.0).value                     # control loop rate [Hz]
         self.sensor_timeout = p('sensor_timeout_s', 0.5).value           # [s]
         self.controller = HeadingPI(
-            kp=p('kp', 1.0).value,                                       # [deg bias / deg error]
+            kp=p('kp', 1.5).value,                                       # [deg bias / deg error]
             ki=p('ki', 0.02).value,                                      # [deg bias / (deg error · s)]
             max_bias_deg=p('max_bias_deg', 30.0).value)                  # [deg]
         window = p('filter_window_s', 0.0).value                         # 0 = one flapping period

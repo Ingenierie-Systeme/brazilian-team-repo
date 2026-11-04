@@ -186,32 +186,65 @@ Open-loop tests in `Basin_Grid` with `RobotFishDetailed`, neutral robot (structu
 
 ![Swimming speed and servo load against the flapping frequency](images/tail_flapping_sweep.png)
 
+*Figure made before the adjustment below: the table has the current values.*
+
 | Frequency | Amplitude 15° | Amplitude 30° | Amplitude 45° |
 | --- | --- | --- | --- |
-| 0.5 Hz | 0.11 m/s | 0.22 m/s | 0.29 m/s |
-| 1.0 Hz | 0.28 m/s | 0.47 m/s | 0.60 m/s |
-| 1.5 Hz | 0.44 m/s | **0.71 m/s** (cruise) | 0.90 m/s |
-| 2.0 Hz | 0.60 m/s | 0.96 m/s | 1.16 m/s (real amplitude 41°) |
-| 2.5 Hz | 0.76 m/s | 1.19 m/s (28°) | 1.19 m/s (28°) |
-| 3.0 Hz | 0.92 m/s | 1.16 m/s (24°) | 1.16 m/s (29°) |
+| 0.5 Hz | 0.08 m/s | 0.21 m/s | 0.29 m/s |
+| 1.0 Hz | 0.22 m/s | 0.45 m/s | 0.61 m/s |
+| 1.5 Hz | 0.36 m/s | **0.69 m/s** (cruise) | 0.90 m/s |
+| 2.0 Hz | 0.49 m/s | 0.90 m/s | 1.14 m/s (real amplitude 41°) |
+| 2.5 Hz | 0.61 m/s | 1.10 m/s (27°) | 1.10 m/s (28°) |
+| 3.0 Hz | 0.73 m/s | 0.97 m/s (24°) | 0.98 m/s (27°) |
 
-- **Speed** grows with frequency and amplitude. The cruise flapping (1.5 Hz, 30°) gives 0.71 m/s, about 0.9 body length per second (the robot is 0.81 m long), in the usual range of robot fish.
-- **Strouhal number** St = f · (trailing-edge peak-to-peak) / U between 0.37 and 0.54. Fish swim at 0.2–0.4; robot fish, less efficient, usually somewhat higher.
-- **Servo limits:** above 2 Hz with 30° (1.5–2 Hz with 45°) the servo cannot follow, the real amplitude drops and the speed stops growing. Beyond 2.5 Hz the moment of the water on the fin exceeds the stall torque of the servo (2.84 N·m): the useful range is up to about **2 Hz at 30°**.
-- **Recoil:** the reaction of the tail makes the whole robot swing in yaw (±6° at 15°, ±10° at 30°, ±14° at 45°), as real fish swimming with their tail do, and roll (±2° at 15°, ±6° at 30°, ±10° at 45°, at 1.5 Hz).
-- **Depth:** without depth control the robot stays at its depth up to 2 Hz and climbs slowly above (about 0.13 m/s at 2.5 Hz): the thrust acts below the center of mass and tilts the nose up (2° at cruise, up to 10° at 2.5 Hz). The depth controller (step 4) has to compensate it with the moving mass.
+- **Speed** grows with frequency and amplitude. The cruise flapping (1.5 Hz, 30°) gives 0.69 m/s, about 0.9 body length per second (the robot is 0.81 m long), in the usual range of robot fish.
+- **Strouhal number** St = f · (trailing-edge peak-to-peak) / U between 0.46 and 0.56 above 1 Hz. Fish swim at 0.2–0.4; robot fish, less efficient, usually somewhat higher.
+- **Servo limits:** the peak moment of the water on the fin is 1.5 N·m at cruise and 3.1 N·m at 2 Hz with 30°, already above the stall torque of the servo (2.84 N·m). The useful range is up to about **1.5 to 2 Hz at 30°**; above it, the real amplitude drops and the speed stops growing.
+- **Recoil:** at 1.5 Hz, the reaction of the tail makes the whole robot swing in yaw (±3.2° at 15°, ±6.4° at 30°, ±9.9° at 45°) and roll (±0.6°, ±1.6°, ±3.0°). See the adjustment below.
+- **Depth:** without depth control, the robot changes depth by less than 0.11 m in 5 s up to 2 Hz at 30° or 1.5 Hz at 45° (mean pitch 1.5° nose up at cruise). See [GNC.md](GNC.md) for the slow sinking noticed during the longer tests.
 
 ![Start from rest](images/tail_flapping_start.png)
 
-*Start from rest (1.5 Hz, 30°): the fin follows the servo command closely, the speed reaches 0.7 m/s after about 4 s, the heading oscillates with the flapping.*
+*Before the adjustment below. Start from rest (1.5 Hz, 30°): the fin follows the servo command closely, the speed reaches 0.7 m/s after about 4 s, the heading oscillates with the flapping.*
 
 **Turns** (1.5 Hz, 30°, fin bias):
 
-| Bias | Yaw rate | Turning radius | Speed |
-| --- | --- | --- | --- |
-| 5° | 7°/s | 5.5 m | 0.70 m/s |
-| 10° | 12°/s | 3.3 m | 0.69 m/s |
-| 20° | 15°/s | 2.6 m | 0.69 m/s |
+| Bias | Yaw rate | Turning radius |
+| --- | --- | --- |
+| 5° | 3.8°/s | about 10 m |
+| 10° | 7.5–9.3°/s | about 3 to 5 m |
+| 20° | 14°/s | about 2.5 m |
+
+The rates vary by about 20 % between runs, because they depend on the phase of the stroke when the bias is applied. The yaw rate is about K · bias, with K = 0.75 /s at 30° and 0.33 /s at 15° of amplitude.
+
+**Adjustment of the tail reaction.** In the first version of the model, the robot reacted too strongly to the strokes of the tail, as the clients noticed in a meeting. No measurement of the real robot is available yet, so the following terms were added from the physics, and the damping was chosen in the simulation to get a plausible behavior:
+
+| Term | Value | Basis |
+| --- | --- | --- |
+| Water carried by the fin in yaw (`finAddedYawInertia`) | about 0.27 kg·m² | Computed from the added mass of the fin. The force of the fin uses only the acceleration of the servo, so without this term the recoil is overestimated |
+| Water carried by the fins in roll (`finAddedRollInertia`) | 0.004 kg·m² | Estimate: added mass of each fin × the square of its distance to the axis |
+| Rotational damping (`angularDamping`) | 0.3 N·m·s, was 0.05 | **Tuned, not measured.** The fins resist the rotation, and without this term the roll combines with the side force of the fin and the robot dives |
+
+| At 1.5 Hz, 30° | Before | After |
+| --- | --- | --- |
+| Yaw swing | ±10.1° | ±6.4° |
+| Roll | ±5.6° | ±1.6° |
+| Depth change in 5 s | −0.06 m | −0.03 m |
+| Speed | 0.71 m/s | 0.69 m/s |
+| Peak moment on the servo | 0.8 N·m | 1.5 N·m |
+
+The moment on the servo grows because the stern moves less, so the fin moves faster relative to the water. A larger BG did not help: with this model, 20 mm and 30 mm increase the roll. These values must be replaced by a comparison with the real robot: a video from above, and the roll and heading logged, at 1.5 Hz with 15° and 30°.
+
+**Smoothed display of the recoil (visual only).** The motion still looked too abrupt to the team, so the display also filters it. While playing, `RobotFishVisual` shows all the parts under `Visual` with a low-pass filtered orientation (two filters in series, 0.25 s each). Colliders, sensors, physics and control use the true orientation, so the numbers above, the sensor data and the image of the robot camera do not change.
+
+| At 1.5 Hz, 30° | True (physics, sensors) | Shown on the screen |
+| --- | --- | --- |
+| Yaw swing | ±6.4° | ±1.0° |
+| Roll | ±1.6° | ±0.2° |
+
+The display follows slow motions with a delay of about 0.5 s, so the robot appears slightly behind the true heading while it turns (about 4° at 8°/s). **Videos and live demonstrations therefore show less swing than the model computes**, and the real swing is still unknown. To see the true motion, turn off `smoothRecoil` in the `RobotFishVisual` component of the prefab.
+
+The next two paragraphs describe the tests made before this adjustment.
 
 **Roll resonance (important for the real robot).** The roll of the robot has a natural frequency close to the flapping frequencies: with BG = 10 mm the righting moment in roll is W · BG ≈ 0.46 N·m/rad and the roll inertia ≈ 0.006 kg·m², which gives about 1.4 Hz (0.9 Hz with the 2.8 mm of the CAD distribution). Flapping near this frequency makes the robot roll, and a rolled robot turns part of the side force of the fin into a vertical force: during the development of the model, before the fin was split in rows (no roll damping from the fin), the robot rolled by ±8–10° and dived by about 1 m in 5 s while swimming. The rows over the height of the fin damp the roll enough to keep it at about ±6°. On the real robot, a strong roll or a depth drift that depends on the flapping frequency would come from this.
 
@@ -331,7 +364,7 @@ After Ctrl+C on every `pub`, the actuators return to neutral within 0.5 s (watch
 ## 7. Limitations
 
 - **Flapping tail:** reactive (Lighthill) + resistive model with literature coefficients (added mass 0.7 of the 2D value, crossflow drag 1.2), not calibrated: the speeds of section 5.1 should be compared with the real robot (speed for a few frequencies and amplitudes) and the coefficients adjusted. No wake, no interaction between the hull and the fin, no effect of the fin coming out of the water at the surface beyond the wet fraction.
-- **Added inertia of the fin in yaw:** the water carried by the fin when the whole robot yaws is not included (`finAddedYawInertia`, off). With it, the yaw swing drops from ±10° to about ±7°, but the model dives while swimming (about 0.5 m in 5 s), for every BG tested; the cause is not understood yet. The yaw swing is therefore somewhat overestimated.
+- **Reaction of the tail:** the added inertia and the rotational damping of section 5.1 reduce the swing of the robot, but the damping was tuned without a measurement, and the display hides most of what remains (visual only). The added mass of the fin does not follow the sideways recoil of the robot, and the real swing is unknown.
 - **Servo:** speed and acceleration limits from the datasheet; the velocity-dependent part of the water moment is not taken into account by the servo model (the `tailHingeMoment` debug value shows it).
 - **Masses:** the structure mass (4.0 kg) is a team estimate and its distribution is idealized (`Simplified` model: balanced robot, BG = 10 mm). Weighing the robot and measuring where its center of mass is (balance on a rod, and the roll period in the water) would replace both.
 - **Moving-mass drive:** unknown; modeled as a mass moving at constant speed along the axis.

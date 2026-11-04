@@ -152,11 +152,11 @@ The physics of the robot fish is described in [RobotFish_Model.md](RobotFish_Mod
 
 - **No ballast:** depth is controlled only through the pitch (moving mass) while swimming forward. Vertical speed ≈ forward speed × sin(pitch). With the moving mass heavy enough to be neutral (≈ 2.3 kg), a few centimetres of displacement tilt the robot by tens of degrees and its full travel (±150 mm) makes it vertical, so the depth controller must limit the displacement it commands. Depth control will be a cascade: depth error → desired pitch → moving-mass position.
 - **Weak self-righting:** the center of mass is only about 10 mm below the center of buoyancy (simulation value, set by how low the battery is mounted), so the robot tilts and rolls easily and pitch oscillates slowly after a change; the pitch loop must damp it.
-- **One fin for propulsion and steering:** speed is set by the flapping frequency and amplitude (about 0.7 m/s at 1.5 Hz and 30°, see [RobotFish_Model.md](RobotFish_Model.md#51-tail-flapping)), the heading by the bias of the oscillation (10° of bias: 12°/s while swimming at cruise). The two are coupled: a large bias reduces the useful amplitude (the fin is limited to ±60°) and the speed.
+- **One fin for propulsion and steering:** speed is set by the flapping frequency and amplitude (about 0.7 m/s at 1.5 Hz and 30°, see [RobotFish_Model.md](RobotFish_Model.md#51-tail-flapping)), the heading by the bias of the oscillation (10° of bias: about 8°/s while swimming at cruise). The two are coupled: a large bias reduces the useful amplitude (the fin is limited to ±60°) and the speed.
 - **Turning needs speed:** the bias only steers while the robot swims.
-- **The heading oscillates with each stroke** (±6° to ±14° depending on the amplitude): the heading controller must not try to cancel this oscillation, it should act on the heading averaged over a flapping period (low-pass filter or averaging on the magnetometer/IMU heading).
+- **The heading oscillates with each stroke** (±3° to ±10° depending on the amplitude): the heading controller must not try to cancel this oscillation, it should act on the heading averaged over a flapping period (low-pass filter or averaging on the magnetometer/IMU heading).
 - **Servo limits:** above about 2 Hz at 30° the servo can no longer follow the commanded amplitude, and beyond 2.5 Hz the water moment exceeds its stall torque. The controllers should stay within this range.
-- **Roll and depth with flapping:** the flapping makes the robot roll a few degrees and, at high speed, climb slowly (the thrust acts below the center of mass); the depth controller compensates with the moving mass.
+- **Roll and depth with flapping:** the flapping makes the robot roll a little (±1.6° at cruise). The simulated robot also sinks slowly during long runs, which still has to be understood before the depth control.
 - **Unknown buoyancy:** it depends on the real masses and on the weight added to the moving mass (the simulation uses the neutral weight, 714 g). The controllers must work for a neutral robot and for a slightly floating one.
 
 ## 5. Step 2: heading control
@@ -177,13 +177,13 @@ If the estimated heading stops for 0.5 s, the node stops publishing and the watc
 ### 5.2 Design
 
 1. **Heading measurement.** The heading comes from the navigation (section 7). The first version of this node used a tilt-compensated compass with the perfect roll and pitch of the simulator, which a real robot does not have.
-2. **Stroke filter.** The heading swings with each stroke of the tail (±6° at 15°, ±10° at 30°). The controller must not try to cancel this swing, so the heading is averaged over exactly one flapping period (0.67 s at 1.5 Hz), which removes it with a small delay. Angles are averaged as unit vectors, so the average is right across 0/360°.
+2. **Stroke filter.** The heading swings with each stroke of the tail (±3° at 15°, ±6° at 30°). The controller must not try to cancel this swing, so the heading is averaged over exactly one flapping period (0.67 s at 1.5 Hz), which removes it with a small delay. Angles are averaged as unit vectors, so the average is right across 0/360°.
 3. **PI controller.** `bias = kp·error + ki·∫error dt`, error wrapped to (−180°, 180°] (the robot always turns the short way), bias limited to ±30° so that the fin keeps a useful flapping amplitude (it is limited to ±60°). Anti-windup by conditional integration: while the bias is saturated, the integral does not grow, so a large turn does not cause an overshoot. No derivative term: it would amplify what remains of the stroke swing; the water damps the yaw by itself.
-4. **Tuning from an identified model.** Bias steps in the simulation (flapping 1.5 Hz) show that the yaw rate settles in less than half a second at a value proportional to the bias: **yaw rate ≈ K · bias**, with K = 0.75 /s at 30° of amplitude and 0.40 /s at 15° (10° of bias → 7.5°/s and 4°/s). Seen by the controller, the robot is an integrator with the half-period delay of the filter. The gains were chosen by simulating this model with the stroke swing, the filter, the saturation and a constant drift: **kp = 1.0** (1° of error → 1° of bias), **ki = 0.02 /s**. The proportional term alone leaves less than 1° of error for the drift seen in the simulation; the small integral removes it without adding much overshoot.
+4. **Tuning from an identified model.** Bias steps in the simulation (flapping 1.5 Hz) show that the yaw rate settles in less than half a second at a value proportional to the bias: **yaw rate ≈ K · bias**, with K = 0.75 /s at 30° of amplitude and 0.33 /s at 15° (10° of bias → 7.5°/s and 3.3°/s). Seen by the controller, the robot is an integrator with the half-period delay of the filter. The gains were chosen by simulating this model with the stroke swing, the filter, the saturation and a constant drift: **kp = 1.5** (1° of error → 1.5° of bias; raised from 1.0 after the adjustment of the tail model, which made the turns slower at 15°), **ki = 0.02 /s**. The proportional term alone leaves less than 1° of error for the drift seen in the simulation; the small integral removes it without adding much overshoot.
 
 ### 5.3 Results (simulation, closed loop through ROS 2)
 
-`Basin_Grid`, neutral robot, flapping 1.5 Hz. The "true" heading comes from the perfect IMU orientation, averaged over one stroke; it is used only to evaluate. These results were obtained with the first version of the heading measurement; section 7.4 gives the results with the navigation.
+`Basin_Grid`, neutral robot, flapping 1.5 Hz. The "true" heading comes from the perfect IMU orientation, averaged over one stroke; it is used only to evaluate. These results were obtained with the first version of the heading measurement, the first tail model and kp = 1.0; section 7.4 gives the current results.
 
 ![Square: four 90° heading steps](images/heading_control_square.png)
 
@@ -465,6 +465,8 @@ Messages can arrive in bursts. In the simulation, the arrival interval of `/imu/
 | Arrival interval | 1.92° | 6.68° |
 | Sensor period | 0.72° | 1.53° |
 
+These values and those of the gain below were obtained with the first tail model.
+
 The depth rate in the simulation varies with the frame rate, so `navigation` uses the average interval between readings instead of a fixed period. With the last interval, the vertical speed had peaks beyond ±1 m/s; with the average, it stays within −0.04 to +0.05 m/s.
 
 **Gain:** a gain of 0.2 is slightly better with perfect sensors (maximum error 0.87° against 1.53°), but much worse with an uncalibrated gyroscope (about 3°/s of bias: 82° against 31°), so the gain of the course is kept.
@@ -475,13 +477,13 @@ The depth rate in the simulation varies with the frame rate, so `navigation` use
 
 | Test | Heading error, rms / max | Roll error, rms / max | Pitch error, rms / max | Within ±5° after a turn | Overshoot | Error at the end |
 | --- | --- | --- | --- | --- | --- | --- |
-| Perfect calibration, no errors | 0.54° / 1.34° | 0.58° / 1.28° | 0.50° / 1.19° | 8.8 s | 1.2–2.3° | −0.4 to −1.7° |
-| Errors, calibrated | 0.48° / 1.17° | 0.61° / 1.28° | 0.54° / 1.16° | 8.6–8.9 s | 1.3–2.3° | −0.8 to −1.6° |
-| Errors, not calibrated | 70° / 106° | 3.31° / 5.50° | 2.51° / 4.10° | never | over 100° | up to 102° |
+| No sensor errors | 0.92° / 2.14° | 0.61° / 1.33° | 0.45° / 1.29° | 8.2–8.8 s | 0.4–2.0° | −0.1 to +0.4° |
+| Errors, calibrated | 0.80° / 1.53° | 0.59° / 1.30° | 0.41° / 1.17° | 8.4–8.6 s | 0.7–1.9° | −0.4 to −1.0° |
+| Errors, not calibrated | 71° / 105° | 6.07° / 12.9° | 8.45° / 14.9° | never | over 100° | up to 101° |
 
-Square with four 90° steps at 15° of amplitude: within ±5° after 7.1–8.4 s, overshoot 0–3.4°, error at the end −0.5 to +2.8°.
+Square with four 90° steps at 15° of amplitude: heading error 0.30° rms and 0.71° at most; within ±5° after 9.8–10.1 s, no overshoot, error at the end −1.5 to −2.7°. Turns at 15° are slower, since the robot swims more slowly (0.36 m/s) and K is smaller.
 
-Compared with section 5.3, the turns take up to about 1 s more, and the overshoot is smaller. **Without calibration, the heading control fails**, so calibration is a required step on the robot, not a refinement.
+**Without calibration, the heading control fails**, so calibration is a required step on the robot, not a refinement.
 
 Unit tests (`ros2_ws/src/gnc_control/test/test_navigation.py`): orientation at rest, convergence, a turn at 25°/s, calibration, gyroscope scale, sensor axes, sideways accelerations like the strokes of the tail, and the depth filter.
 

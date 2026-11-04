@@ -8,8 +8,8 @@ heading_control:
     max_tail_frequency_hz: 3.0
     max_tail_angle_deg: 60.0
     # PI gains, tuned on the yaw response identified in the simulation (Docs/GNC.md):
-    # 1° of heading error → 1° of fin bias; the small integral removes a constant drift.
-    kp: 1.0
+    # 1° of heading error → 1.5° of fin bias; the small integral removes a constant drift.
+    kp: 1.5
     ki: 0.02
     max_bias_deg: 30.0             # bias limit: keeps a useful flapping amplitude on the fin (limit ±60°)
     filter_window_s: 0.0           # heading averaged over this window; 0 = one flapping period
