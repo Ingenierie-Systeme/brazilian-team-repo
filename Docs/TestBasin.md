@@ -187,7 +187,7 @@ An animation of the simulation is available in `media/basin_simulation.gif`.
 2. In the Project window, open `Assets/TestBasin/Scenes/Basin_Grid` (with grid) or `Basin_NoGrid` (without grid).
 3. Press **▶ Play** and drive the AUV with the keys of section 3.7. The camera follows it; below 5.5 m inside the basin, the underwater fog turns on.
 4. Press **C** for the free camera: hold the **right mouse button** and use **WASD**, **Q/E** (down/up) and **Shift** (faster). Press **C** again to follow the AUV.
-5. To test buoyancy: with the default moving mass (714 g) the robot is neutral; set a smaller `Moving Mass` on `RobotFishDetailed` (`Robot Fish Physics`) for a floating robot, or change the test ballast with **Q/E** (simulation only). `RobotFishPhysics` parameters are on the robot fish prefabs.
+5. To test buoyancy: with the default moving mass (713 g) the robot is neutral; set a smaller `Moving Mass` on `RobotFishDetailed` (`Robot Fish Physics`) for a floating robot, or change the test ballast with **Q/E** (simulation only). `RobotFishPhysics` parameters are on the robot fish prefabs.
 6. When leaving Play mode, the Console prints the path of the CSV file, saved in `GroundTruthLogs/`.
 7. To change the basin, edit the `TestBasin` parameters on the prefab; the pieces regenerate automatically.
 

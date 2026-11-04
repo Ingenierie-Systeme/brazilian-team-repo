@@ -108,8 +108,9 @@ public class RobotFishVisual : MonoBehaviour
 
         displayScale = movingMassDisplay == MovingMassDisplay.Exaggerated ? ExaggerationScale() : 1f;
         float rest = physics != null ? physics.movingMassRestPosition : 0f;
-        float travel = physics != null ? physics.movingMassTravel : 0.15f;
-        displayedPosition = Mathf.Clamp(rest + (position - rest) * displayScale, -travel, travel);
+        float back = physics != null ? physics.MovingMassMin : 0f;
+        float front = physics != null ? physics.MovingMassMax : 0.15f;
+        displayedPosition = Mathf.Clamp(rest + (position - rest) * displayScale, back, front);
 
         if (movingMass != null) movingMass.localPosition = Vector3.left * displayedPosition;   // forward = −X
         if (tailPivot != null)
@@ -133,7 +134,7 @@ public class RobotFishVisual : MonoBehaviour
         float bg = physics.centerOfBuoyancy.y - gy;                                    // B above G [m]
         if (bg < 1e-4f) return 1f;                                                     // not computed yet (edit mode) or unstable
         float referenceOffset = total * bg * Mathf.Tan(referencePitch * Mathf.Deg2Rad) / physics.movingMass;
-        float freeTravel = physics.movingMassTravel - Mathf.Abs(physics.movingMassRestPosition);
+        float freeTravel = Mathf.Max(physics.MovingMassMax - physics.movingMassRestPosition, physics.movingMassRestPosition - physics.MovingMassMin);
         return Mathf.Max(1f, freeTravel / referenceOffset);
     }
 }

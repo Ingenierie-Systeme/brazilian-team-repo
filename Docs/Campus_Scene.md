@@ -77,7 +77,7 @@ python3 Tools/scene_assets/make_textures.py <path to>/logo-ensta.jpg
 
 The tour is the `CameraTour` component of the main camera: its waypoints (position, look target, duration) can be edited in the Inspector, and `playOnStart` can be turned off.
 
-**Moving mass:** the robot uses its default moving mass (714 g), which makes it neutral (see [RobotFish_Model.md](RobotFish_Model.md)), so it stays at mid-depth.
+**Moving mass:** the robot uses its default moving mass (713 g), which makes it neutral (see [RobotFish_Model.md](RobotFish_Model.md)), so it stays at mid-depth.
 
 **With ROS 2:** the scene publishes the same sensor topics and listens to the same commands as the basin scenes.
 

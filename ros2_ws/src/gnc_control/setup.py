@@ -26,6 +26,8 @@ setup(
             'heading_control = gnc_control.heading_control_node:main',   # heading controller
             'heading_test = gnc_control.heading_test_node:main',         # scripted heading setpoints + CSV log
             'tail_oscillator = gnc_control.tail_oscillator_node:main',   # real robot: flapping → tail servo angle
+            'depth_control = gnc_control.depth_control_node:main',       # depth control with the moving mass
+            'depth_test = gnc_control.depth_test_node:main',             # scripted depth setpoints + CSV log
             'fusion = gnc_control.fusion_node:main',                     # orientation from the raw sensors
             'navigation = gnc_control.navigation_node:main',             # heading, depth and vertical speed
         ],

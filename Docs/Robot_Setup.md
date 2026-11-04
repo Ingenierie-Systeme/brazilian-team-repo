@@ -9,7 +9,7 @@ How to install, calibrate and start the code on the Raspberry Pi of the robot fi
  Bar30 ────────────► barometer ──/depth─────────────────────────────────────────────►                                     │
                                                                                      /cmd/tail_frequency, amplitude, bias │
  tail servo    ◄──── navigator ◄──/servo/tail── tail_oscillator ◄─────────────────────────────────────────────────────────┘
- moving mass   ◄──── navigator ◄──/cmd/pitch── depth control (planned) or manual command
+ moving mass   ◄──── navigator ◄──/cmd/pitch── depth_control or manual command
 ```
 
 Package `ros2_ws/src/auv_hardware`, based on the `navigator` package of the course. A single node talks to the Navigator board. The topics above the servos are the same as in the simulator, so the GNC nodes do not change.
@@ -138,11 +138,27 @@ Check that the fin bias goes to the side of the error (setpoint to the right, fi
 
 **In the water:** the robot depends on a computer connection to start and stop, and Wi-Fi does not reach under water, so stay at the surface for the first tests, with a way to recover the robot.
 
-## 7. Calibrating the position
+## 7. Depth control
+
+The robot needs to swim to change depth. Before the depth control:
+
+1. **Measure BG:** let the robot roll in the water and time the period T. Then BG ≈ 4π²·I / (M·g·T²), with I the roll inertia, about 0.006 kg·m² in the simulation. Write it in `bg_m` of `depth_control`.
+2. **Measure the travel of the moving mass** at `/cmd/pitch` = ±1, and write it in `moving_mass_travel_m`.
+3. **Weigh the robot,** and write `total_mass_kg` and `moving_mass_kg`.
+4. **Check if the travel is enough:** a travel Δx gives a pitch at rest of about tan(pitch) = m·Δx / (M·BG). The simulation needed about 10° or more ([GNC.md, section 9.3](GNC.md#93-results-simulation-closed-loop-through-ros-2)).
+
+`robot.launch.py swim:=true` also starts the depth control, which holds the depth measured at start. To give a depth (the limits of `robot.yaml` start at 2 m and ±10° of pitch):
+
+```bash
+source /opt/ros/jazzy/setup.bash
+ros2 topic pub -r 2 /guidance/depth std_msgs/msg/Float64 "{data: 1.0}"
+```
+
+## 8. Calibrating the position
 
 The position comes from a speed table measured in the simulation ([GNC.md, section 8](GNC.md#8-step-3b-position-by-dead-reckoning)). Time the robot over a known straight distance in the water, once the speed has settled, at the amplitude in use. Then write in `speed_scale` of `robot.yaml`: real speed / speed of the table (0.36 m/s at 1.5 Hz and 15°).
 
-## 8. What to record, if there is time
+## 9. What to record, if there is time
 
 A video from above and the logs of the roll and heading, at 1.5 Hz with 15° and 30° of amplitude, to compare with the simulation (±3.2° and ±6.4° of yaw, [RobotFish_Model.md](RobotFish_Model.md#51-tail-flapping)):
 

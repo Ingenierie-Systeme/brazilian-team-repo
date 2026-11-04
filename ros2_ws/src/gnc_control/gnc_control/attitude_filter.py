@@ -47,6 +47,7 @@ class AttitudeFilter:
             acceleration_rejection=acceleration_rejection_deg,
             magnetic_rejection=magnetic_rejection_deg,
             rejection_timeout=int(rejection_timeout_s * sample_rate_hz)))   # [samples]
+        self.gyro_rad_s = (0.0, 0.0, 0.0)               # last calibrated angular velocity, body FLU [rad/s]
         self.bias = imufusion.Bias()                    # removes the gyroscope offset while the robot is still
         self.bias.set_settings(imufusion.BiasSettings(sample_rate=int(sample_rate_hz)))
 
@@ -57,6 +58,7 @@ class AttitudeFilter:
         mag = self.mag_soft @ (np.asarray(mag_ut, dtype=float) - self.mag_hard)
 
         gyro_deg_s = self.bias.update(imufusion.remap(np.degrees(gyro), self.alignment))
+        self.gyro_rad_s = tuple(float(x) for x in np.radians(gyro_deg_s))
         self.ahrs.set_sample_period(dt)
         self.ahrs.update(gyro_deg_s, imufusion.remap(accel / GRAVITY, self.alignment),
                          imufusion.remap(mag, self.alignment))

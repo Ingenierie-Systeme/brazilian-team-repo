@@ -48,7 +48,7 @@ Pedro ALVES DE ARAUJO SILVA, Daniel FARLEI SILVA SOUZA, Matheus BENIGNO DA SILVA
 | Simulator: basin, campus scene, physics, sensors, actuators | Done, not yet calibrated against the real robot |
 | Heading following | Done and tested in simulation |
 | Orientation and depth estimation from the raw sensors | Done and tested in simulation |
-| Depth regulation | Planned |
+| Depth regulation | Done and tested in simulation |
 | Position estimation from the flapping commands | Done and tested in simulation, not calibrated on the robot |
 | Waypoints and missions | Planned |
 | Robot drivers (ROS 2) | Written, tested only on a fake board |
@@ -60,7 +60,7 @@ Pedro ALVES DE ARAUJO SILVA, Daniel FARLEI SILVA SOUZA, Matheus BENIGNO DA SILVA
 | --- | --- |
 | **Swimming** | A servo flaps the tail fin from side to side. In the simulation, 1.5 Hz with an amplitude of 30° gives about 0.7 m/s |
 | **Turning** | The flapping is shifted to one side (the *bias*). The robot only turns while it swims |
-| **Changing depth** | A weight slides along the tube. Forward, the nose goes down and the robot dives; backward, it climbs. This also only works while swimming |
+| **Changing depth** | A weight slides along the front half of the tube. Forward, the nose goes down and the robot dives; backward, it climbs. This also only works while swimming |
 | **Staying upright** | The center of mass is below the center of buoyancy, so the robot returns to level by itself |
 | **Knowing where it points** | A filter combines the gyroscope, accelerometer and magnetometer. A pressure sensor gives the depth |
 
@@ -126,7 +126,7 @@ Everything runs as ROS 2 nodes written in Python. The architecture follows the c
 
 | ROS 2 package | Content |
 | --- | --- |
-| [`gnc_control`](ros2_ws/src/gnc_control) | `fusion`, `navigation` (orientation, depth and position), `heading_control`, `tail_oscillator` |
+| [`gnc_control`](ros2_ws/src/gnc_control) | `fusion`, `navigation` (orientation, depth and position), `heading_control`, `depth_control`, `tail_oscillator` |
 | [`auv_hardware`](ros2_ws/src/auv_hardware) | `navigator`, `barometer`, launch file and parameters of the robot |
 
 ## Results so far
@@ -140,6 +140,7 @@ All from the simulation, closed loop through ROS 2. Nothing has been measured on
 | Position error over a 21 m path | 1.06 m at most |
 | 180° turn: within ±5° of the target after | 8.4–8.6 s, overshoot below 2° |
 | Same, with uncalibrated sensors | The control fails, so calibration is required on the robot |
+| Depth steps of ±1 m while turning | Within 0.1 m after 7–22 s, error at the end below 0.03 m |
 
 ## Try it
 
@@ -239,13 +240,12 @@ Tools/
 
 - The simulator is not calibrated yet: drag, water reaction on the tail and masses are estimates, listed in [RobotFish_Assumptions.md](Docs/RobotFish_Assumptions.md).
 - The drivers have only run on a fake board.
-- The simulated robot sinks slowly during long runs, which still has to be understood.
-- The moving mass of the simulation (±150 mm, at the center of the tube) must still be compared with the real mechanism.
+- The simulation uses the moving mass of the target design (from the tube center to the front). The mechanism assembled today moves less, and the team expects to change it.
 
 **Next steps**
 
 1. Integrate software and robot: install, calibrate and run the [first tests](Docs/Robot_Setup.md).
 2. Waterproofing, balancing and tests in the basin, with videos.
 3. Compare the simulator with the real robot and adjust it.
-4. Depth regulation, then position estimation and missions.
+4. Waypoints and missions.
 5. Electrical schematic and study of the project cost.
