@@ -593,6 +593,8 @@ The robot has no speed sensor and, under water, no absolute position. Integratin
 
 Unit tests: `ros2_ws/src/gnc_control/test/test_dead_reckoning.py`. The GNSS correction has only been tested there, not with Unity.
 
+These results were obtained before the moving mass of section 9, which does not change the flapping or the speed table.
+
 ### 8.3 Limitations
 
 - **The table comes from the simulation.** On the robot, calibrate `speed_scale` with a timed swim ([Robot_Setup.md](Robot_Setup.md)). Before that, the real position can be far off.
@@ -700,7 +702,7 @@ The gains come from steps of the moving mass in the simulation. The pitch follow
 | 5 mm, feedforward assumes 10 mm | ±75 mm | Works, with more pitch: up to 29° |
 | 30 mm | ±75 mm | Works |
 | 30 mm, feedforward assumes 10 mm | ±75 mm | **Too slow:** error of 0.2 to 0.3 m after 30 s |
-| 30 mm | ±25 mm | **Fails:** the pitch stops near ±10° and the robot does not come back up in time (error of 0.7 m) |
+| 30 mm | ±25 mm | **Fails:** the static pitch at the end of the travel is about ±7°, and the robot does not come back up in time (error of 0.7 m) |
 
 So a travel of ±25 mm may be enough if BG is about 10 mm, and **BG must be measured**, because it decides the travel needed and sets the feedforward. Those results depend on the estimated speed and thrust of the simulation.
 
