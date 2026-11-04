@@ -52,7 +52,8 @@ Pedro ALVES DE ARAUJO SILVA, Daniel FARLEI SILVA SOUZA, Matheus BENIGNO DA SILVA
 | Orientation and depth estimation from the raw sensors | Done and tested in simulation |
 | Depth regulation | Done and tested in simulation |
 | Position estimation from the flapping commands | Done and tested in simulation, not calibrated on the robot |
-| Waypoints and missions | Planned |
+| Missions by time and by waypoints, with safe end | Done and tested in simulation |
+| Teleop that takes the robot at any moment | Done and tested in simulation |
 | Robot drivers (ROS 2) | Written, tested only on a fake board |
 | Electrical schematic and cost study | Done |
 | Real robot | In assembly; **no test in the water yet** |
@@ -65,6 +66,7 @@ Pedro ALVES DE ARAUJO SILVA, Daniel FARLEI SILVA SOUZA, Matheus BENIGNO DA SILVA
 | **Turning** | The flapping is shifted to one side (the *bias*). The robot only turns while it swims |
 | **Changing depth** | A weight slides along the front half of the tube. Forward, the nose goes down and the robot dives; backward, it climbs. This also only works while swimming |
 | **Staying upright** | The center of mass is below the center of buoyancy, so the robot returns to level by itself |
+| **Doing a mission alone** | A file lists the headings, depths and points. At the end, or if something goes wrong, the robot swims up or stops. An operator can take it by keyboard at any moment, while the connection reaches it |
 | **Knowing where it points** | A filter combines the gyroscope, accelerometer and magnetometer. A pressure sensor gives the depth |
 
 ## The physical robot
@@ -134,6 +136,14 @@ Estimated total: **about €9,440**, of which about 87 % is labor. The detail, s
 
 The simulator recreates the ENSTA Air-Sea Test Basin (20 × 12 × 6 m) in **Unity 6** and exchanges data with the software through **ROS 2**, so the code tested here is the code meant for the robot.
 
+### A complete mission
+
+![The robot running a mission through four points](Docs/media/robot_fish_mission_2x.gif)
+
+*The robot goes through four points at different depths by itself, then swims up and stops (2× speed).*
+
+### The test basin
+
 ![Tour of the simulated campus, from the parking lot to the robot](Docs/media/air_sea_test_basin_tour_2x.gif)
 
 *Camera tour from the campus to the robot (2× speed).*
@@ -159,7 +169,7 @@ Everything runs as ROS 2 nodes written in Python. The architecture follows the c
 
 | ROS 2 package | Content |
 | --- | --- |
-| [`gnc_control`](ros2_ws/src/gnc_control) | `fusion`, `navigation` (orientation, depth and position), `heading_control`, `depth_control`, `tail_oscillator` |
+| [`gnc_control`](ros2_ws/src/gnc_control) | `fusion`, `navigation` (orientation, depth and position), `heading_control`, `depth_control`, `tail_oscillator`, `mission`, `teleop` |
 | [`auv_hardware`](ros2_ws/src/auv_hardware) | `navigator`, `barometer`, launch file and parameters of the robot |
 
 ## Results so far
@@ -174,6 +184,8 @@ All from the simulation, closed loop through ROS 2. Nothing has been measured on
 | 180° turn: within ±5° of the target after | 8.4–8.6 s, overshoot below 2° |
 | Same, with uncalibrated sensors | The control fails, so calibration is required on the robot |
 | Depth steps of ±1 m while turning | Within 0.1 m after 7–22 s, error at the end below 0.03 m |
+| Mission through 4 points, 8 × 4 m | All reached in 32 s by the estimated position, in fact 1.6 to 2.4 m from each point |
+| Failures: navigation lost, unreachable point, operator takes over | The robot stops or swims up as designed |
 
 ## Try it
 
@@ -188,7 +200,7 @@ You need Ubuntu 24.04, [ROS 2 Jazzy](https://docs.ros.org/en/jazzy/Installation.
 | W / S | Move the mass forward / backward |
 | C | Free camera (right mouse button + WASD) |
 
-**With the heading control.** Once, install the dependencies and build:
+**With a complete mission.** Once, install the dependencies and build:
 
 ```bash
 python3 -m pip install --user --break-system-packages imufusion
@@ -209,30 +221,22 @@ cd ~/ros2_ws && source install/setup.bash
 ros2 run ros_tcp_endpoint default_server_endpoint --ros-args -p ROS_IP:=127.0.0.1
 ```
 
-Terminal 2, navigation:
+Terminal 2, all the nodes and a mission (the robot starts swimming after a few seconds):
 
 ```bash
 source /opt/ros/jazzy/setup.bash
 export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
 cd <path to>/brazilian-team-repo/ros2_ws && source install/setup.bash
-ros2 launch gnc_control navigation.launch.py
+ros2 launch gnc_control simulation.launch.py mission:=waypoints.yaml
 ```
 
-Terminal 3, heading control (the robot starts swimming after about 3 s):
+Terminal 3, to take the robot with the keyboard at any moment (Space swims, A/D turn, W/S move the mass, X stops):
 
 ```bash
 source /opt/ros/jazzy/setup.bash
 export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
 cd <path to>/brazilian-team-repo/ros2_ws && source install/setup.bash
-ros2 launch gnc_control heading_control.launch.py
-```
-
-Terminal 4, ask for a heading in degrees, clockwise from north (Ctrl+C to change it; the basin is small, so watch the walls):
-
-```bash
-source /opt/ros/jazzy/setup.bash
-export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
-ros2 topic pub -r 2 /guidance/heading std_msgs/msg/Float64 "{data: 180.0}"
+ros2 run gnc_control teleop
 ```
 
 To run the code on the real robot, follow [Robot_Setup.md](Docs/Robot_Setup.md).
@@ -280,4 +284,3 @@ Tools/
 1. Integrate software and robot: install, calibrate and run the [first tests](Docs/Robot_Setup.md).
 2. Waterproofing, balancing and tests in the basin, with videos.
 3. Compare the simulator with the real robot and adjust it.
-4. Waypoints and missions.

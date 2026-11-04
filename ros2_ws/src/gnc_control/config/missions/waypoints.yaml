@@ -1,0 +1,13 @@
+# Mission by points of the basin, in meters from the start point (north, west). Uses the estimated position,
+# which must be calibrated on the real robot first (Docs/Robot_Setup.md).
+# In the simulation, the robot starts in the middle of the width, 6 m from the middle of the length, heading north.
+start_delay_s: 3.0
+time_limit_s: 180.0
+max_depth_m: 4.5
+surface_depth_m: 0.5
+surface_timeout_s: 60.0
+steps:
+  - {north: 8.0, west: 0.0, depth: 2.0, radius: 1.5, timeout: 40.0}
+  - {north: 8.0, west: 4.0, depth: 3.0, radius: 1.5, timeout: 40.0}
+  - {north: 0.0, west: 4.0, depth: 2.0, radius: 1.5, timeout: 40.0}
+  - {north: 0.0, west: 0.0, depth: 3.0, radius: 1.5, timeout: 40.0}

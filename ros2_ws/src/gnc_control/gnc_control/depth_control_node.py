@@ -6,6 +6,7 @@ Subscriptions:
   /state/odom         nav_msgs/Odometry           estimated speed, to know if the robot swims
   /guidance/depth     std_msgs/Float64            depth setpoint [m]; until the first message, the node holds the
                                                   depth it measures at start
+  /teleop/active      std_msgs/Bool               an operator has the robot: this node publishes nothing
 Publications:
   /cmd/pitch          std_msgs/Float64            moving mass, −1 … 1, + = forward, nose down, 20 Hz
   /gnc/depth_error    std_msgs/Float64            setpoint − depth [m]
@@ -22,7 +23,7 @@ from rclpy.node import Node
 from rclpy.signals import SignalHandlerOptions
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import Imu
-from std_msgs.msg import Float64
+from std_msgs.msg import Bool, Float64
 
 from .depth_controller import DepthController
 from .shutdown import install_stop_handlers
@@ -38,6 +39,7 @@ class DepthControlNode(Node):
         self.min_speed = p('min_speed_m_s', 0.1).value                   # below it, the robot does not swim [m/s]
         self.sensor_timeout = p('sensor_timeout_s', 0.5).value           # [s]
         self.rate = p('control_rate_hz', 20.0).value                     # [Hz]
+        self.teleop_timeout = p('teleop_timeout_s', 0.5).value           # silence of the teleop [s]
         self.controller = DepthController(
             kp=p('kp', 30.0).value, ki=p('ki', 2.0).value, kd=p('kd', 30.0).value,
             max_pitch_deg=p('max_pitch_deg', 20.0).value,
@@ -50,6 +52,7 @@ class DepthControlNode(Node):
         self.depth = self.depth_rate = self.pitch = None
         self.pitch_rate = self.speed = 0.0                               # [deg/s], [m/s]
         self.last_state_time = None                                      # [s]
+        self.teleop_time = None                                          # [s]
 
         # ---- ROS interfaces
         self.create_subscription(Float64, 'state/depth', self.on_depth, 10)
@@ -58,6 +61,7 @@ class DepthControlNode(Node):
         self.create_subscription(Imu, 'state/attitude', self.on_attitude, 10)
         self.create_subscription(Odometry, 'state/odom', self.on_odom, 10)
         self.create_subscription(Float64, 'guidance/depth', self.on_setpoint, 10)
+        self.create_subscription(Bool, 'teleop/active', self.on_teleop, 10)
         self.pub_command = self.create_publisher(Float64, 'cmd/pitch', 10)
         self.pub_error = self.create_publisher(Float64, 'gnc/depth_error', 10)
         self.pub_pitch = self.create_publisher(Float64, 'gnc/pitch_setpoint', 10)
@@ -83,8 +87,14 @@ class DepthControlNode(Node):
     def on_setpoint(self, msg):
         self.setpoint = max(self.min_depth, min(self.max_depth, msg.data))
 
+    def on_teleop(self, msg):
+        if msg.data:
+            self.teleop_time = self.now()
+
     def step(self):
         """Control loop: setpoint and state → moving-mass command."""
+        if self.teleop_time is not None and self.now() - self.teleop_time <= self.teleop_timeout:
+            return                                                       # the operator has the robot
         if (self.depth is None or self.depth_rate is None or self.pitch is None
                 or self.now() - self.last_state_time > self.sensor_timeout):
             return                                                       # no state: publish nothing (safe)

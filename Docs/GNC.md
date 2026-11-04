@@ -37,8 +37,8 @@ Navigation, guidance and control run as ROS 2 nodes; the Unity simulation is the
 | 3b | Navigation: position by dead reckoning, `/state/odom` (section 8) | done, not yet calibrated on the robot |
 | – | Drivers and start of the real robot: package `auv_hardware` ([Robot_Setup.md](Robot_Setup.md)) | written, tested on a fake board only |
 | 4 | Depth control: node `depth_control` (section 9) | done, not yet tested on the robot |
-| 5 | Guidance (setpoints, waypoints, mission) | planned |
-| 6 | Launch file and evaluation | planned |
+| 5 | Guidance: missions by time and by waypoints, teleop that takes over at any moment (section 10) | done, not yet tested on the robot |
+| 6 | Launch files and evaluation of a complete mission (section 10) | done in simulation |
 
 ## 3. Actuator command interface
 
@@ -796,3 +796,145 @@ export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
 cd <path to>/brazilian-team-repo/ros2_ws && source install/setup.bash
 ros2 run gnc_control depth_test --ros-args -p sequence:="2.5:10,3.5:30,2.5:30" -p output:=depth.csv
 ```
+
+## 10. Steps 5 and 6: missions and teleop
+
+The robot cannot be reached under water, so a mission must run alone and end safely. The node `mission` reads a file and commands the controllers.
+
+```text
+mission file ─► mission ─► /guidance/heading ─► heading_control
+                  ▲     ─► /guidance/depth   ─► depth_control
+            /state/odom ─► /guidance/swim    ─► heading_control (no flapping when false)
+
+teleop ─► /teleop/active ─► the mission ends, the controllers stop publishing
+       ─► /cmd/tail_frequency, /cmd/tail_amplitude, /cmd/tail_bias, /cmd/pitch
+```
+
+### 10.1 Mission file
+
+Files in `ros2_ws/src/gnc_control/config/missions/`. A step either keeps a heading for some time or aims at a point:
+
+```yaml
+start_delay_s: 30.0                # time to put the robot in the water
+time_limit_s: 120.0                # all the steps together
+max_depth_m: 2.0                   # beyond it: the mission ends and the robot swims up
+surface_depth_m: 0.5
+surface_timeout_s: 60.0
+steps:
+  - {heading: 0.0, depth: 1.0, duration: 15.0}                        # by time: does not use the position
+  - {north: 5.0, west: 2.0, depth: 1.5, radius: 1.5, timeout: 40.0}   # a point, in meters from the start
+```
+
+A wrong file is refused at start, with a message that names the step.
+
+### 10.2 Phases
+
+| Phase | Tail | Ends when |
+| --- | --- | --- |
+| `WAITING` | stopped | the state estimate is ready |
+| `DELAY` | stopped | `start_delay_s` has passed |
+| `RUNNING` | flapping | all steps are done, or one of the events below |
+| `SURFACING` | flapping | near `surface_depth_m`, or `surface_timeout_s` has passed |
+| `FINISHED` | stopped | – |
+
+| Event | Reaction |
+| --- | --- |
+| A waypoint is not reached in its `timeout` | `SURFACING` |
+| `time_limit_s` of the mission | `SURFACING` |
+| Depth beyond `max_depth_m` | `SURFACING` |
+| State lost for 1 s | `STOPPED`: the tail stops at once |
+| The teleop takes the robot | `OVERRIDDEN`: the mission ends and does not resume |
+| The node `mission` stops | `heading_control` stops the tail after 2 s |
+
+**Surfacing in circles.** A neutral robot that stops swimming does not rise by itself, so it swims up. In the first test it kept its last heading, reached a wall and stayed there. Now its heading turns at 20°/s, about 2 m of radius at 0.7 m/s.
+
+### 10.3 Teleop
+
+The node `teleop` is a keyboard control, with the same keys as Unity. **Any control key takes the robot at any moment:** the controllers stop publishing within 0.5 s and the mission ends. R releases the robot; the mission does not resume, so the tail stays stopped.
+
+| Key | Action |
+| --- | --- |
+| Space | Swim / stop swimming |
+| A / D | Tail bias to the left / right |
+| W / S | Moving mass forward / backward |
+| C | Center the bias and the moving mass |
+| X | Stop: no flapping, everything centered |
+| R | Release the robot |
+| Q | Quit |
+
+Radio does not cross the water, so **the teleop only works while the connection reaches the robot**, in practice at the surface or with a cable. If the connection is lost after a takeover, the commands stop and the watchdogs center the servos. **Under water, safety relies on the mission rules above and on a rope tied to the robot**, which is required in the real basin.
+
+### 10.4 Results (simulation, closed loop through ROS 2)
+
+`Basin_Grid`, flapping 1.5 Hz, amplitude 30°. Video: `presentation_media/mission`, with a 2× GIF in `Docs/media`.
+
+| Test | Result |
+| --- | --- |
+| Mission by waypoints: 4 points of a rectangle of 8 × 4 m, depths 2 to 3 m | All reached in 32 s, then surfacing in 16 s, tail stopped |
+| Mission by time: 3 steps | Done in 50 s, depth within 0.12 m at the end of each step, surfacing in 9 s, tail stopped |
+| Navigation killed in the middle of a mission | `STOPPED` at once, the speed falls by itself |
+| Waypoint impossible to reach | Stopped by its timeout, then surfacing and stop |
+| Teleop during a mission, with real key presses | `OVERRIDDEN` at the first key; the commands follow the keys; after R, the tail stays stopped |
+
+**Accuracy of the waypoints:** the estimated position is within 1.07 m of the true one during the steps, and within 1.54 m while surfacing in circles. So when the mission considers a point reached (1.5 m of radius), the robot was **1.6 to 2.4 m** from it. Use a radius and a spacing that accept this, and remember that the real position is not calibrated yet.
+
+After the tail stops, a robot that was rising keeps gliding up: its depth reached 0.09 to 0.19 m, above the `surface_depth_m` of 0.5 m.
+
+Unit tests (`test_mission.py`): phases, order of the steps, each event, teleop at each phase, wrong files and keys.
+
+### 10.5 Limitations
+
+- Not tested on the robot. The mission by waypoints depends on the calibration of the position (`speed_scale`), so start with `timed.yaml`.
+- A robot that is heavier than water sinks if everything fails. The balancing should leave it slightly buoyant, and the rope remains necessary.
+- The circles have a fixed radius: starting them close to a wall may still touch it.
+
+### 10.6 Running it
+
+**Once: build the workspace** (needs ROS 2 Jazzy, and `imufusion`, section 7.6):
+
+```bash
+source /opt/ros/jazzy/setup.bash
+cd <path to>/brazilian-team-repo/ros2_ws
+colcon build --symlink-install
+colcon test --packages-select gnc_control
+colcon test-result --verbose
+```
+
+**Terminal 1: ROS-TCP-Endpoint** (workspace with the endpoint, see [AUV_Sensors.md](AUV_Sensors.md#5-running-with-ros-2)):
+
+```bash
+source /opt/ros/jazzy/setup.bash
+export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
+cd ~/ros2_ws && source install/setup.bash
+ros2 run ros_tcp_endpoint default_server_endpoint --ros-args -p ROS_IP:=127.0.0.1
+```
+
+**Unity:** open `Assets/TestBasin/Scenes/Basin_Grid.unity`, press Play and click the Game view.
+
+**Terminal 2: all the GNC nodes and the mission:**
+
+```bash
+source /opt/ros/jazzy/setup.bash
+export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
+cd <path to>/brazilian-team-repo/ros2_ws && source install/setup.bash
+ros2 launch gnc_control simulation.launch.py mission:=waypoints.yaml
+```
+
+**Terminal 3: watch the mission** (Ctrl+C to stop watching):
+
+```bash
+source /opt/ros/jazzy/setup.bash
+export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
+ros2 topic echo /mission/status
+```
+
+**Terminal 4: take the robot with the keyboard, at any moment** (keys in this terminal, not in Unity):
+
+```bash
+source /opt/ros/jazzy/setup.bash
+export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
+cd <path to>/brazilian-team-repo/ros2_ws && source install/setup.bash
+ros2 run gnc_control teleop
+```
+
+To start again, stop terminal 2 with Ctrl+C, stop Play and press Play again: the mission does not restart by itself.

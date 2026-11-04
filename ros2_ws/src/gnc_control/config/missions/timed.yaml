@@ -1,0 +1,11 @@
+# Mission by time: does not use the position, so it is the first one to try on the real robot.
+# Headings in degrees, clockwise from true north. Depths in meters. Times in seconds.
+start_delay_s: 30.0                # time to put the robot in the water
+time_limit_s: 120.0                # all the steps together
+max_depth_m: 2.0                   # beyond it: the mission ends and the robot swims up
+surface_depth_m: 0.5
+surface_timeout_s: 60.0
+steps:
+  - {heading: 0.0, depth: 1.0, duration: 15.0}
+  - {heading: 180.0, depth: 1.5, duration: 20.0}
+  - {heading: 0.0, depth: 1.0, duration: 15.0}

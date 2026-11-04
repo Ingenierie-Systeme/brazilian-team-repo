@@ -154,11 +154,42 @@ source /opt/ros/jazzy/setup.bash
 ros2 topic pub -r 2 /guidance/depth std_msgs/msg/Float64 "{data: 1.0}"
 ```
 
-## 8. Calibrating the position
+## 8. Mission and teleop
+
+**Tie a rope to the robot.** Radio does not cross the water, so the teleop only works while the connection reaches it.
+
+The first mission should be `timed.yaml`, which does not use the position, with a delay of 30 s to put the robot in the water. Check the headings and depths of the file first.
+
+**Terminal 1, on the robot:**
+
+```bash
+source /opt/ros/jazzy/setup.bash
+cd <path to>/brazilian-team-repo/ros2_ws && source install/setup.bash
+ros2 launch auv_hardware robot.launch.py swim:=true mission:=timed.yaml
+```
+
+**Terminal 2, on the robot, to take it at any moment** (any control key takes it, X stops everything, R releases it; the mission does not resume):
+
+```bash
+source /opt/ros/jazzy/setup.bash
+cd <path to>/brazilian-team-repo/ros2_ws && source install/setup.bash
+ros2 run gnc_control teleop
+```
+
+**Terminal 3, the state of the mission:**
+
+```bash
+source /opt/ros/jazzy/setup.bash
+ros2 topic echo /mission/status
+```
+
+Terminal 1 keeps running if the connection is lost, as long as it runs in `tmux` or `screen` on the robot. Start it that way before a test in the water. Test the takeover out of the water first.
+
+## 9. Calibrating the position
 
 The position comes from a speed table measured in the simulation ([GNC.md, section 8](GNC.md#8-step-3b-position-by-dead-reckoning)). Time the robot over a known straight distance in the water, once the speed has settled, at the amplitude in use. Then write in `speed_scale` of `robot.yaml`: real speed / speed of the table (0.36 m/s at 1.5 Hz and 15°).
 
-## 9. What to record, if there is time
+## 10. What to record, if there is time
 
 A video from above and the logs of the roll and heading, at 1.5 Hz with 15° and 30° of amplitude, to compare with the simulation (±3.2° and ±6.4° of yaw, [RobotFish_Model.md](RobotFish_Model.md#51-tail-flapping)):
 

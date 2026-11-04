@@ -3,6 +3,7 @@
     ros2 launch auv_hardware robot.launch.py                  # sensors, navigation, servos: the tail does not move
     ros2 launch auv_hardware robot.launch.py swim:=true       # also heading and depth control: THE TAIL STARTS FLAPPING
     ros2 launch auv_hardware robot.launch.py barometer:=false # without the pressure sensor
+    ros2 launch auv_hardware robot.launch.py swim:=true mission:=timed.yaml   # a mission, from gnc_control/config/missions
 
 Start it with the pressure sensor at the surface: this pressure is the zero of the depth.
 """
@@ -12,13 +13,15 @@ from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.conditions import IfCondition
-from launch.substitutions import LaunchConfiguration
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, PythonExpression
 from launch_ros.actions import Node
 
 
 def generate_launch_description():
     default_params = os.path.join(get_package_share_directory('auv_hardware'), 'config', 'robot.yaml')
     params = LaunchConfiguration('params')
+    missions = os.path.join(get_package_share_directory('gnc_control'), 'config', 'missions')
+    mission = LaunchConfiguration('mission')
 
     def node(package, executable, **kwargs):
         return Node(package=package, executable=executable, name=executable, parameters=[params], output='screen',
@@ -28,6 +31,7 @@ def generate_launch_description():
         DeclareLaunchArgument('params', default_value=default_params, description='parameter file'),
         DeclareLaunchArgument('swim', default_value='false', description='start the heading and depth control (the tail flaps)'),
         DeclareLaunchArgument('barometer', default_value='true', description='start the pressure sensor'),
+        DeclareLaunchArgument('mission', default_value='', description='file in config/missions of gnc_control'),
         node('auv_hardware', 'navigator'),
         node('auv_hardware', 'barometer', condition=IfCondition(LaunchConfiguration('barometer'))),
         node('gnc_control', 'fusion'),
@@ -35,4 +39,7 @@ def generate_launch_description():
         node('gnc_control', 'tail_oscillator'),
         node('gnc_control', 'heading_control', condition=IfCondition(LaunchConfiguration('swim'))),
         node('gnc_control', 'depth_control', condition=IfCondition(LaunchConfiguration('swim'))),
+        Node(package='gnc_control', executable='mission', name='mission', output='screen',
+             parameters=[{'mission_file': PathJoinSubstitution([missions, mission])}],
+             condition=IfCondition(PythonExpression(["'", mission, "' != ''"]))),
     ])
