@@ -51,7 +51,8 @@ Pedro ALVES DE ARAUJO SILVA, Daniel FARLEI SILVA SOUZA, Matheus BENIGNO DA SILVA
 | Heading following | Done and tested in simulation |
 | Orientation and depth estimation from the raw sensors | Done and tested in simulation |
 | Depth regulation | Planned |
-| Position estimation, waypoints and missions | Planned |
+| Position estimation from the flapping commands | Done and tested in simulation, not calibrated on the robot |
+| Waypoints and missions | Planned |
 | Robot drivers (ROS 2) | Written, tested only on a fake board |
 | Electrical schematic and cost study | Done |
 | Real robot | In assembly; **no test in the water yet** |
@@ -158,7 +159,7 @@ Everything runs as ROS 2 nodes written in Python. The architecture follows the c
 
 | ROS 2 package | Content |
 | --- | --- |
-| [`gnc_control`](ros2_ws/src/gnc_control) | `fusion`, `navigation`, `heading_control`, `tail_oscillator` |
+| [`gnc_control`](ros2_ws/src/gnc_control) | `fusion`, `navigation` (orientation, depth and position), `heading_control`, `tail_oscillator` |
 | [`auv_hardware`](ros2_ws/src/auv_hardware) | `navigator`, `barometer`, launch file and parameters of the robot |
 
 ## Results so far
@@ -169,6 +170,7 @@ All from the simulation, closed loop through ROS 2. Nothing has been measured on
 | --- | --- |
 | Swimming speed | 0.69 m/s |
 | Heading error of the estimate, sensors with calibrated errors | 0.80° rms, 1.53° at most |
+| Position error over a 21 m path | 1.06 m at most |
 | 180° turn: within ±5° of the target after | 8.4–8.6 s, overshoot below 2° |
 | Same, with uncalibrated sensors | The control fails, so calibration is required on the robot |
 

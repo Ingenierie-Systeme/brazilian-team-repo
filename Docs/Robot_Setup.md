@@ -138,7 +138,11 @@ Check that the fin bias goes to the side of the error (setpoint to the right, fi
 
 **In the water:** the robot depends on a computer connection to start and stop, and Wi-Fi does not reach under water, so stay at the surface for the first tests, with a way to recover the robot.
 
-## 7. What to record, if there is time
+## 7. Calibrating the position
+
+The position comes from a speed table measured in the simulation ([GNC.md, section 8](GNC.md#8-step-3b-position-by-dead-reckoning)). Time the robot over a known straight distance in the water, once the speed has settled, at the amplitude in use. Then write in `speed_scale` of `robot.yaml`: real speed / speed of the table (0.36 m/s at 1.5 Hz and 15°).
+
+## 8. What to record, if there is time
 
 A video from above and the logs of the roll and heading, at 1.5 Hz with 15° and 30° of amplitude, to compare with the simulation (±3.2° and ±6.4° of yaw, [RobotFish_Model.md](RobotFish_Model.md#51-tail-flapping)):
 

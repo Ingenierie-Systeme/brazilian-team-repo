@@ -23,3 +23,21 @@ navigation:
     depth_rate_hz: 20.0            # ROBOT: rate of the pressure sensor (first guess, then measured by the node)
     depth_alpha: 0.2               # depth filter: weight of each new reading on the depth
     depth_beta: 0.02               # depth filter: weight of each new reading on the vertical speed
+    # Position by dead reckoning. The speed table comes from the simulation; on the robot, calibrate speed_scale.
+    speed_frequencies_hz: [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0]
+    speed_amplitudes_deg: [0.0, 15.0, 30.0, 45.0]
+    speed_table: [0.0, 0.0, 0.0, 0.0,      # speed [m/s], one row per frequency, one column per amplitude
+                  0.0, 0.08, 0.21, 0.29,
+                  0.0, 0.22, 0.45, 0.61,
+                  0.0, 0.36, 0.69, 0.90,
+                  0.0, 0.49, 0.90, 1.14,
+                  0.0, 0.61, 1.10, 1.10,
+                  0.0, 0.73, 0.97, 0.98]
+    speed_scale: 1.0               # ROBOT: real speed / table speed, from a timed swim
+    speed_time_constant_s: 1.2     # delay of the speed after a command
+    max_tail_frequency_hz: 3.0     # same scales as the commands
+    max_tail_angle_deg: 60.0
+    command_timeout_s: 0.5         # no flapping command for this long: the speed goes to 0
+    attitude_timeout_s: 0.5        # no attitude for this long: no position
+    gnss_gain: 0.05                # optional GNSS: fraction of the difference corrected at each fix
+    odom_rate_hz: 20.0
