@@ -24,10 +24,9 @@ setup(
     },
     entry_points={
         'console_scripts': [
+            'navigator_node = auv_hardware.navigator_node:main',
             'bar30_publisher = auv_hardware.bar30_publisher:main',
-            'servo_subscriber = auv_hardware.servo_subscriber:main',
             'camera_publisher = auv_hardware.camera_publisher:main',
-            'imu_publisher = auv_hardware.imu_publisher:main',
             'teleop_controller = auv_hardware.teleop_controller:main',
         ],
     },

@@ -32,7 +32,7 @@ USAGE_BANNER = """
 ==============================================================
    [Space]   : Toggle Thrust ON/OFF (tail flapping)
    [A] / [D] : Steer Left / Right (tail bias offset)
-   [W] / [S] : Pitch Down (forward) / Pitch Up (backward)
+   [W] / [S] : Pitch Down / Up (mass range [-1.0, +0.3])
    [C]       : Re-center Rudder & Mass to 0
    [X]       : Stop all (Thrust OFF, zero all)
    [Q]       : Quit
@@ -93,7 +93,7 @@ class TeleopController(Node):
         elif key == 'd':
             self.rudder_offset = min(0.6, self.rudder_offset + self.rudder_step)
         elif key == 'w':
-            self.mass_position = min(1.0, self.mass_position + self.mass_step)
+            self.mass_position = min(0.3, self.mass_position + self.mass_step)
         elif key == 's':
             self.mass_position = max(-1.0, self.mass_position - self.mass_step)
         elif key == 'c':
