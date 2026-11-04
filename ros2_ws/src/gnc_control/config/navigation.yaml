@@ -1,0 +1,25 @@
+# Parameters of the navigation (gnc_control/fusion_node.py, navigation_node.py). See Docs/GNC.md, section 7.
+# The values below fit the simulation. Those marked ROBOT must be measured on the real robot, with the
+# imu_calib tools of the course.
+fusion:
+  ros__parameters:
+    sample_rate_hz: 50.0           # ROBOT: rate of /imu/data, it is the time step of the filter
+    gain: 0.5                      # weight of the accelerometer and magnetometer against the gyroscope
+    acceleration_rejection_deg: 10.0   # ignores the accelerometer beyond this disagreement with the gyroscope
+    magnetic_rejection_deg: 10.0   # ignores the magnetometer beyond this disagreement
+    rejection_timeout_s: 5.0       # longest time a sensor can be ignored
+    sensor_timeout_s: 0.5          # no magnetometer for this long: no estimate
+    axes: PXPYPZ                   # ROBOT: sensor axes to body FLU (imufusion alignment name)
+    gyro_scale: 1.0                # ROBOT: the course code uses 0.25 on the Navigator; check it with a turn test
+    gyro_offset: [0.0, 0.0, 0.0]   # ROBOT: tool_calib-gyro.py
+    accel_offset: [0.0, 0.0, 0.0]  # ROBOT: tool_calib-accel.py
+    accel_matrix: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]   # ROBOT: tool_calib-accel.py, by rows
+    mag_hard: [0.0, 0.0, 0.0]      # ROBOT: tool_calib-mag-fit.py, hard-iron offset v [µT]
+    mag_soft: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]       # ROBOT: tool_calib-mag-fit.py, matrix M, by rows
+
+navigation:
+  ros__parameters:
+    declination_deg: -1.0          # Brest: magnetic north about 1° west of true north
+    depth_rate_hz: 20.0            # ROBOT: rate of the pressure sensor (first guess, then measured by the node)
+    depth_alpha: 0.2               # depth filter: weight of each new reading on the depth
+    depth_beta: 0.02               # depth filter: weight of each new reading on the vertical speed

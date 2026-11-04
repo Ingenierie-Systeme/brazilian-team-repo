@@ -33,7 +33,8 @@ Navigation, guidance and control run as ROS 2 nodes; the Unity simulation is the
 | 1c | Tail flapping propulsion and tail commands (frequency, amplitude, bias) ([RobotFish_Model.md](RobotFish_Model.md#35-tail-flapping-propulsion)) | done |
 | 2 | Heading control: ROS 2 package `gnc_control`, node `heading_control` (section 5) | done |
 | 2b | Tail oscillator of the real robot and common topics of the simulation and the robot (section 6) | done, not yet tested on the robot |
-| 3 | Navigation node | planned |
+| 3a | Navigation: orientation, heading, depth and vertical speed; nodes `fusion` and `navigation` (section 7) | done, not yet tested on the robot |
+| 3b | Navigation: position | planned |
 | 4 | Depth control | planned |
 | 5 | Guidance (setpoints, waypoints, mission) | planned |
 | 6 | Launch file and evaluation | planned |
@@ -167,23 +168,22 @@ The node `heading_control` (package `ros2_ws/src/gnc_control`, Python, `rclpy`) 
 | Direction | Topic | Type | Content |
 | --- | --- | --- | --- |
 | in | `/guidance/heading` | `std_msgs/Float64` | heading setpoint [deg, clockwise from true north]. Until the first message, the node holds the heading it measures at start |
-| in | `/imu/mag` | `sensor_msgs/MagneticField` | magnetometer |
-| in | `/imu/data` | `sensor_msgs/Imu` | only roll and pitch of the orientation, for the tilt compensation of the magnetometer |
+| in | `/state/heading` | `std_msgs/Float64` | heading estimated by the navigation [deg, clockwise from true north] (section 7) |
 | out | `/cmd/tail_frequency`, `/cmd/tail_amplitude`, `/cmd/tail_bias` | `std_msgs/Float64` | actuator commands (section 3), 20 Hz |
 | out | `/gnc/heading`, `/gnc/heading_error`, `/gnc/tail_bias` | `std_msgs/Float64` | measured heading (averaged) [deg], error [deg], fin bias [deg], for monitoring |
 
-If the magnetometer stops for 0.5 s, the node stops publishing and the simulator watchdog stops the flapping. Parameters: `ros2_ws/src/gnc_control/config/heading_control.yaml`.
+If the estimated heading stops for 0.5 s, the node stops publishing and the watchdog of the simulator or of `tail_oscillator` stops the flapping. Parameters: `ros2_ws/src/gnc_control/config/heading_control.yaml`.
 
 ### 5.2 Design
 
-1. **Heading measurement.** Tilt-compensated compass: the magnetometer reading is rotated back to the level frame with the roll and pitch of the IMU, the heading is the direction of the horizontal field, plus the declination (−1° in Brest). The yaw of the IMU orientation is not used: in the simulation it is perfect, a real robot does not have it.
+1. **Heading measurement.** The heading comes from the navigation (section 7). The first version of this node used a tilt-compensated compass with the perfect roll and pitch of the simulator, which a real robot does not have.
 2. **Stroke filter.** The heading swings with each stroke of the tail (±6° at 15°, ±10° at 30°). The controller must not try to cancel this swing, so the heading is averaged over exactly one flapping period (0.67 s at 1.5 Hz), which removes it with a small delay. Angles are averaged as unit vectors, so the average is right across 0/360°.
 3. **PI controller.** `bias = kp·error + ki·∫error dt`, error wrapped to (−180°, 180°] (the robot always turns the short way), bias limited to ±30° so that the fin keeps a useful flapping amplitude (it is limited to ±60°). Anti-windup by conditional integration: while the bias is saturated, the integral does not grow, so a large turn does not cause an overshoot. No derivative term: it would amplify what remains of the stroke swing; the water damps the yaw by itself.
 4. **Tuning from an identified model.** Bias steps in the simulation (flapping 1.5 Hz) show that the yaw rate settles in less than half a second at a value proportional to the bias: **yaw rate ≈ K · bias**, with K = 0.75 /s at 30° of amplitude and 0.40 /s at 15° (10° of bias → 7.5°/s and 4°/s). Seen by the controller, the robot is an integrator with the half-period delay of the filter. The gains were chosen by simulating this model with the stroke swing, the filter, the saturation and a constant drift: **kp = 1.0** (1° of error → 1° of bias), **ki = 0.02 /s**. The proportional term alone leaves less than 1° of error for the drift seen in the simulation; the small integral removes it without adding much overshoot.
 
 ### 5.3 Results (simulation, closed loop through ROS 2)
 
-`Basin_Grid`, neutral robot, flapping 1.5 Hz. The "true" heading comes from the perfect IMU orientation, averaged over one stroke; it is used only to evaluate.
+`Basin_Grid`, neutral robot, flapping 1.5 Hz. The "true" heading comes from the perfect IMU orientation, averaged over one stroke; it is used only to evaluate. These results were obtained with the first version of the heading measurement; section 7.4 gives the results with the navigation.
 
 ![Square: four 90° heading steps](images/heading_control_square.png)
 
@@ -196,7 +196,7 @@ If the magnetometer stops for 0.5 s, the node stops publishing and the simulator
 
 - The large turns are made with the bias saturated at 30°: about 12°/s at 15° of amplitude and 25°/s at 30°. The U-turn has a radius of about 1.6 m at 0.71 m/s.
 - The end of each turn is slower than the model predicted (time constant ≈ 1/(K·kp), 1.3 s at 30° and 2.5 s at 15°); kp could be raised a little at 30° of amplitude. The overshoot (up to 6°) is slightly larger than in the model (2°).
-- Unit tests (`ros2_ws/src/gnc_control/test/`): heading from the magnetometer with and without tilt, average across 0/360°, sign and short way of the error, saturation, anti-windup, and closed-loop steps of 30°, 90° and 180° on the identified model (24 tests).
+- Unit tests (`ros2_ws/src/gnc_control/test/`): angles from a quaternion, average across 0/360°, sign and short way of the error, saturation, anti-windup, and closed-loop steps of 30°, 90° and 180° on the identified model.
 
 ### 5.4 Running it
 
@@ -228,7 +228,16 @@ ros2 run ros_tcp_endpoint default_server_endpoint --ros-args -p ROS_IP:=127.0.0.
 
 **Unity:** open `Assets/TestBasin/Scenes/Basin_Grid.unity`, press Play and click the Game view.
 
-**Terminal 2: heading controller** (the robot starts swimming and holds its heading):
+**Terminal 2: navigation** (needs `imufusion`, section 7.6; the estimate is ready after about 3 s):
+
+```bash
+source /opt/ros/jazzy/setup.bash
+export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
+cd <path to>/brazilian-team-repo/ros2_ws && source install/setup.bash
+ros2 launch gnc_control navigation.launch.py
+```
+
+**Terminal 3: heading controller** (the robot starts swimming and holds its heading):
 
 ```bash
 source /opt/ros/jazzy/setup.bash
@@ -237,7 +246,7 @@ cd <path to>/brazilian-team-repo/ros2_ws && source install/setup.bash
 ros2 launch gnc_control heading_control.launch.py
 ```
 
-**Terminal 3: give a heading** (one at a time, Ctrl+C between them; the basin is small, so keep the robot away from the walls):
+**Terminal 4: give a heading** (one at a time, Ctrl+C between them; the basin is small, so keep the robot away from the walls):
 
 ```bash
 source /opt/ros/jazzy/setup.bash
@@ -246,7 +255,7 @@ ros2 topic pub -r 2 /guidance/heading std_msgs/msg/Float64 "{data: 90.0}"    # e
 ros2 topic pub -r 2 /guidance/heading std_msgs/msg/Float64 "{data: 270.0}"   # west
 ```
 
-**Terminal 4: watch it:**
+**Terminal 5: watch it:**
 
 ```bash
 source /opt/ros/jazzy/setup.bash
@@ -254,9 +263,9 @@ export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
 ros2 topic echo /gnc/heading_error      # goes to about 0 after each turn; Ctrl+C
 ```
 
-To stop the robot, stop the controller (Ctrl+C in terminal 2): without commands, the flapping stops after 0.5 s.
+To stop the robot, stop the controller (Ctrl+C in terminal 3): without commands, the flapping stops after 0.5 s.
 
-**Scripted test** (the tests of section 5.3), instead of terminal 3: with the controller running (terminal 2, here with a 15° amplitude so that the square fits in the basin), the node `heading_test` publishes a sequence of setpoints and writes a CSV (time, setpoint, measured heading, true heading, bias):
+**Scripted test** (the tests of section 5.3), instead of terminal 4: with the navigation and the controller running (terminals 2 and 3, here with a 15° amplitude so that the square fits in the basin), the node `heading_test` publishes a sequence of setpoints and writes a CSV (time, setpoint, measured heading, true heading, bias):
 
 ```bash
 source /opt/ros/jazzy/setup.bash
@@ -265,7 +274,7 @@ cd <path to>/brazilian-team-repo/ros2_ws && source install/setup.bash
 ros2 run gnc_control heading_test --ros-args -p sequence:="0:8,90:12,180:12,270:12,0:12" -p output:=square.csv
 ```
 
-with terminal 2 started as:
+with terminal 3 started as:
 
 ```bash
 source /opt/ros/jazzy/setup.bash
@@ -276,7 +285,7 @@ ros2 run gnc_control heading_control --ros-args --params-file src/gnc_control/co
 
 ### 5.5 Limitations
 
-- The heading comes from the magnetometer, which in the simulation sees a uniform field. In the real basin, the steel structure and the electronics of the robot disturb it: a calibration (hard and soft iron) will be needed, and the navigation step (step 3) will combine the magnetometer with the gyroscope.
+- In the simulation, the magnetometer sees a uniform field. In the real basin, the steel structure and the electronics of the robot disturb it, so the calibration of section 7.5 is needed.
 - The speed is not controlled (constant flapping), and a large bias reduces the useful amplitude of the fin, so the robot slows down slightly in turns.
 - The gains were identified at 1.5 Hz with amplitudes of 15° and 30°; other flapping settings change K (section 5.2) and may need other gains.
 
@@ -412,3 +421,138 @@ ros2 topic echo /gnc/fin_angle           # swings between −30° and +30°; Ctr
 Press Ctrl+C in terminals 2 and 3: after 0.5 s, `/gnc/fin_angle` stays at 0.
 
 The node does not command the simulator: to test the GNC in Unity, follow section 5.4 without `tail_oscillator`.
+
+## 7. Step 3a: navigation of orientation and depth
+
+The controllers must only use what the real robot can measure. The real IMU gives no orientation, so two nodes estimate the state from the raw sensors. They follow the architecture of the `navigator` package given in the course, which separates `fusion` from `navigation`.
+
+```text
+/imu/data (gyroscope, accelerometer) ─┐
+/imu/mag ─────────────────────────────┴─► fusion ─/state/attitude─┐
+                                                                  ├─► navigation ─► /state/heading ─► heading_control
+/depth ───────────────────────────────────────────────────────────┘               ► /state/roll, /state/pitch
+                                                                                  ► /state/depth, /state/depth_rate
+```
+
+### 7.1 Interface
+
+| Node | Direction | Topic | Type | Content |
+| --- | --- | --- | --- | --- |
+| `fusion` | in | `/imu/data` | `sensor_msgs/Imu` | only the gyroscope and the accelerometer, never the orientation field |
+| `fusion` | in | `/imu/mag` | `sensor_msgs/MagneticField` | magnetometer [T] |
+| `fusion` | out | `/state/attitude` | `sensor_msgs/Imu` | orientation, body FLU → world NWU, relative to magnetic north |
+| `navigation` | in | `/state/attitude`, `/depth` | | see above; depth from the pressure sensor [m] |
+| `navigation` | out | `/state/heading` | `std_msgs/Float64` | [deg, clockwise from true north] |
+| `navigation` | out | `/state/roll`, `/state/pitch` | `std_msgs/Float64` | [deg], + = right side down, + = nose down |
+| `navigation` | out | `/state/depth`, `/state/depth_rate` | `std_msgs/Float64` | filtered depth [m], vertical speed [m/s], + = going down |
+
+Parameters: `ros2_ws/src/gnc_control/config/navigation.yaml`. The sensor topics keep the names of the simulator; only the outputs use the `/state` names of the course.
+
+### 7.2 Design
+
+- **Orientation:** the AHRS of the `imufusion` library, as in `node_fusion.py` of the course, with its gain of 0.5. It uses the NWU convention here instead of NED, because the simulation and the heading code already use NWU.
+- **Calibration and axes:** parameters of `fusion`, neutral in the simulation (section 7.5). The values in `node_fusion.py` belong to another board, so they are not used.
+- **No estimate, no output:** nothing is published during the first seconds (about 3 s), nor if the magnetometer stops for 0.5 s or the IMU stops. The controllers then stop publishing, and the watchdog stops the flapping.
+- **Depth and vertical speed:** alpha-beta filter on `/depth` (alpha 0.2, beta 0.02), because the difference of two noisy readings would amplify the noise. The depth control (step 4) will need the vertical speed.
+- **Declination:** applied by `navigation` (−1° in Brest). `/state/attitude` stays relative to magnetic north.
+
+### 7.3 Time step
+
+Messages can arrive in bursts. In the simulation, the arrival interval of `/imu/data` is typically 5 ms, with peaks beyond 78 ms, for an average of 20 ms. Each message still covers one sensor period, so the filter uses the sensor period as its time step (`sample_rate_hz`), not the arrival interval. The same recorded data gave:
+
+| Time step of `fusion` | Heading error, rms | Heading error, maximum |
+| --- | --- | --- |
+| Arrival interval | 1.92° | 6.68° |
+| Sensor period | 0.72° | 1.53° |
+
+The depth rate in the simulation varies with the frame rate, so `navigation` uses the average interval between readings instead of a fixed period. With the last interval, the vertical speed had peaks beyond ±1 m/s; with the average, it stays within −0.04 to +0.05 m/s.
+
+**Gain:** a gain of 0.2 is slightly better with perfect sensors (maximum error 0.87° against 1.53°), but much worse with an uncalibrated gyroscope (about 3°/s of bias: 82° against 31°), so the gain of the course is kept.
+
+### 7.4 Results (simulation, closed loop through ROS 2)
+
+`Basin_Grid`, U-turns with flapping at 1.5 Hz and 30°: 8 s at 0°, 15 s at 180°, 15 s at 0°. The sensor errors of the last two rows are a gyroscope bias of (0.03, −0.02, 0.04) rad/s and a hard iron of (20, −15, 8) µT, set in the simulator. Estimation error: estimate against the perfect orientation of the same sensor message, used only to evaluate.
+
+| Test | Heading error, rms / max | Roll error, rms / max | Pitch error, rms / max | Within ±5° after a turn | Overshoot | Error at the end |
+| --- | --- | --- | --- | --- | --- | --- |
+| Perfect calibration, no errors | 0.54° / 1.34° | 0.58° / 1.28° | 0.50° / 1.19° | 8.8 s | 1.2–2.3° | −0.4 to −1.7° |
+| Errors, calibrated | 0.48° / 1.17° | 0.61° / 1.28° | 0.54° / 1.16° | 8.6–8.9 s | 1.3–2.3° | −0.8 to −1.6° |
+| Errors, not calibrated | 70° / 106° | 3.31° / 5.50° | 2.51° / 4.10° | never | over 100° | up to 102° |
+
+Square with four 90° steps at 15° of amplitude: within ±5° after 7.1–8.4 s, overshoot 0–3.4°, error at the end −0.5 to +2.8°.
+
+Compared with section 5.3, the turns take up to about 1 s more, and the overshoot is smaller. **Without calibration, the heading control fails**, so calibration is a required step on the robot, not a refinement.
+
+Unit tests (`ros2_ws/src/gnc_control/test/test_navigation.py`): orientation at rest, convergence, a turn at 25°/s, calibration, gyroscope scale, sensor axes, sideways accelerations like the strokes of the tail, and the depth filter.
+
+### 7.5 What to set on the robot
+
+Run the `imu_calib` tools of the course with the robot assembled, then write the results in `config/navigation.yaml`:
+
+| Parameter | Tool or test |
+| --- | --- |
+| `gyro_offset` | `tool_calib-gyro.py`, 10 s without moving |
+| `accel_offset`, `accel_matrix` | `tool_calib-accel.py`, six faces |
+| `mag_hard`, `mag_soft` | `tool_calib-mag-log.py` (75 s, turning in all directions), then `tool_calib-mag-fit.py` |
+| `gyro_scale` | turn the robot by 90° and compare with the integrated gyroscope; the course code uses 0.25 on the Navigator |
+| `axes` | check that `/state/roll`, `/state/pitch` and `/state/heading` move with the right signs |
+| `sample_rate_hz`, `depth_rate_hz` | rates of the driver |
+
+### 7.6 Running it
+
+**Once: install `imufusion` and build the workspace** (needs ROS 2 Jazzy; same installation on the Raspberry Pi):
+
+```bash
+python3 -m pip install --user --break-system-packages imufusion
+source /opt/ros/jazzy/setup.bash
+cd <path to>/brazilian-team-repo/ros2_ws
+colcon build --symlink-install
+```
+
+**Unit tests** (no Unity needed):
+
+```bash
+source /opt/ros/jazzy/setup.bash
+cd <path to>/brazilian-team-repo/ros2_ws
+colcon test --packages-select gnc_control
+colcon test-result --verbose
+```
+
+**Terminal 1: ROS-TCP-Endpoint** (workspace with the endpoint, see [AUV_Sensors.md](AUV_Sensors.md#5-running-with-ros-2)):
+
+```bash
+source /opt/ros/jazzy/setup.bash
+export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
+cd ~/ros2_ws && source install/setup.bash
+ros2 run ros_tcp_endpoint default_server_endpoint --ros-args -p ROS_IP:=127.0.0.1
+```
+
+**Unity:** open `Assets/TestBasin/Scenes/Basin_Grid.unity`, press Play and click the Game view.
+
+**Terminal 2: navigation:**
+
+```bash
+source /opt/ros/jazzy/setup.bash
+export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
+cd <path to>/brazilian-team-repo/ros2_ws && source install/setup.bash
+ros2 launch gnc_control navigation.launch.py
+```
+
+**Terminal 3: watch the state** (one command at a time, Ctrl+C between them). Move the robot with the keyboard in the Game view (A/D while swimming with Space):
+
+```bash
+source /opt/ros/jazzy/setup.bash
+export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
+ros2 topic echo /state/heading
+ros2 topic echo /state/pitch
+ros2 topic echo /state/depth
+ros2 topic echo /state/depth_rate
+```
+
+To close the loop with the heading controller, continue with terminals 3 to 5 of section 5.4.
+
+### 7.7 Limitations
+
+- Not tested on the robot yet. The real sensor errors may be larger, and they may vary with the temperature and the current of the servos.
+- The magnetic field of the simulation is uniform. The real basin may have disturbances that a calibration cannot remove.
+- The time step assumes that the driver keeps its rate: if many IMU messages are lost, the estimate lags until the magnetometer corrects it.

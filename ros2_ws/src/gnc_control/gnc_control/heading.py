@@ -33,27 +33,9 @@ def roll_pitch_from_quaternion(x, y, z, w):
 
 
 def heading_from_quaternion(x, y, z, w):
-    """Heading [deg, clockwise from north] of a body→world (NWU) quaternion. Used only to evaluate the
-    controller: the simulated IMU orientation is perfect, a real robot does not have it."""
+    """Heading [deg, clockwise from north] of a body→world (NWU) quaternion."""
     yaw_nwu = math.atan2(2.0 * (w * z + x * y), 1.0 - 2.0 * (y * y + z * z))   # counterclockwise from north
     return wrap_360(-math.degrees(yaw_nwu))
-
-
-def magnetic_heading(bx, by, bz, roll=0.0, pitch=0.0):
-    """Tilt-compensated magnetic heading [deg, clockwise from magnetic north] from the magnetometer reading
-    (body frame FLU, any unit) and the roll and pitch of the robot [rad].
-
-    The reading is rotated back to the level frame (undo the roll, then the pitch); in that frame the
-    horizontal field points to magnetic north, and for a robot turned right by ψ, north appears ψ to the left:
-    (h_x, h_y) = H·(cos ψ, sin ψ), so ψ = atan2(h_y, h_x).
-    """
-    cr, sr = math.cos(roll), math.sin(roll)
-    cp, sp = math.cos(pitch), math.sin(pitch)
-    vy = by * cr - bz * sr                              # undo the roll (rotation about x)
-    vz = by * sr + bz * cr
-    hx = bx * cp + vz * sp                              # undo the pitch (rotation about y)
-    hy = vy
-    return wrap_360(math.degrees(math.atan2(hy, hx)))
 
 
 class CircularMovingAverage:

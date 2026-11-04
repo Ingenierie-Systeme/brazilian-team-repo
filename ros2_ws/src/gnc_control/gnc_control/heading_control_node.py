@@ -4,26 +4,24 @@ The robot swims at a constant flapping (frequency and amplitude, parameters) and
 bias of the flapping, so that its heading follows the setpoint.
 
 Subscriptions:
-  /imu/mag           sensor_msgs/MagneticField   magnetometer (body frame FLU)
-  /imu/data          sensor_msgs/Imu             only the roll and pitch of its orientation, for the tilt
-                                                 compensation of the magnetometer
-  /guidance/heading  std_msgs/Float64            heading setpoint [deg, clockwise from true north]; until the
-                                                 first message, the node holds the heading it measures at start
+  /state/heading     std_msgs/Float64   heading estimated by the navigation [deg, clockwise from true north]
+  /guidance/heading  std_msgs/Float64   heading setpoint [deg, clockwise from true north]; until the first
+                                        message, the node holds the heading it measures at start
 Publications:
   /cmd/tail_frequency, /cmd/tail_amplitude, /cmd/tail_bias   std_msgs/Float64, normalized (see Docs/GNC.md)
   /gnc/heading        std_msgs/Float64   measured heading, averaged over one flapping period [deg]
   /gnc/heading_error  std_msgs/Float64   setpoint − heading [deg], + = target to the right
   /gnc/tail_bias      std_msgs/Float64   commanded fin bias [deg]
 
-Safety: if the magnetometer stops (no message for `sensor_timeout` s), the node stops publishing; the
-simulator watchdog then stops the flapping after 0.5 s.
+Safety: if the estimated heading stops (no message for `sensor_timeout` s), the node stops publishing; the
+watchdog of the simulator or of tail_oscillator then stops the flapping after 0.5 s.
 """
 import rclpy
+from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
-from sensor_msgs.msg import Imu, MagneticField
 from std_msgs.msg import Float64
 
-from .heading import CircularMovingAverage, magnetic_heading, roll_pitch_from_quaternion, wrap_360
+from .heading import CircularMovingAverage, wrap_360
 from .heading_controller import HeadingPI
 
 
@@ -36,7 +34,6 @@ class HeadingControlNode(Node):
         self.cruise_amplitude = p('cruise_amplitude_deg', 30.0).value    # flapping amplitude [deg]
         self.max_tail_frequency = p('max_tail_frequency_hz', 3.0).value  # = maxTailFrequency in Unity
         self.max_tail_angle = p('max_tail_angle_deg', 60.0).value        # = maxTailAngle in Unity
-        self.declination = p('declination_deg', -1.0).value              # magnetic north east of true north
         self.rate = p('control_rate_hz', 20.0).value                     # control loop rate [Hz]
         self.sensor_timeout = p('sensor_timeout_s', 0.5).value           # [s]
         self.controller = HeadingPI(
@@ -47,13 +44,11 @@ class HeadingControlNode(Node):
         self.filter = CircularMovingAverage(window if window > 0.0 else 1.0 / self.cruise_frequency)
 
         # ---- state
-        self.roll = self.pitch = 0.0                                     # from the IMU [rad]
         self.setpoint = None                                             # [deg]
-        self.last_mag_time = None                                        # [s]
+        self.last_heading_time = None                                    # [s]
 
         # ---- ROS interfaces
-        self.create_subscription(MagneticField, 'imu/mag', self.on_mag, 10)
-        self.create_subscription(Imu, 'imu/data', self.on_imu, 10)
+        self.create_subscription(Float64, 'state/heading', self.on_heading, 10)
         self.create_subscription(Float64, 'guidance/heading', self.on_setpoint, 10)
         self.pub_frequency = self.create_publisher(Float64, 'cmd/tail_frequency', 10)
         self.pub_amplitude = self.create_publisher(Float64, 'cmd/tail_amplitude', 10)
@@ -62,21 +57,15 @@ class HeadingControlNode(Node):
         self.pub_error = self.create_publisher(Float64, 'gnc/heading_error', 10)
         self.pub_bias_deg = self.create_publisher(Float64, 'gnc/tail_bias', 10)
         self.create_timer(1.0 / self.rate, self.step)
-        self.get_logger().info('heading control ready, waiting for the magnetometer')
+        self.get_logger().info('heading control ready, waiting for the estimated heading')
 
     def now(self):
         return self.get_clock().now().nanoseconds * 1e-9                 # [s]
 
-    def on_imu(self, msg):
-        q = msg.orientation
-        self.roll, self.pitch = roll_pitch_from_quaternion(q.x, q.y, q.z, q.w)
-
-    def on_mag(self, msg):
-        f = msg.magnetic_field
-        heading = wrap_360(magnetic_heading(f.x, f.y, f.z, self.roll, self.pitch) + self.declination)
+    def on_heading(self, msg):
         t = self.now()
-        self.filter.add(t, heading)
-        self.last_mag_time = t
+        self.filter.add(t, msg.data)
+        self.last_heading_time = t
 
     def on_setpoint(self, msg):
         self.setpoint = wrap_360(msg.data)
@@ -84,8 +73,8 @@ class HeadingControlNode(Node):
     def step(self):
         """Control loop: averaged heading → PI → fin bias, published with the flapping commands."""
         heading = self.filter.value()
-        if heading is None or self.now() - self.last_mag_time > self.sensor_timeout:
-            return                                                       # no sensor: publish nothing (safe)
+        if heading is None or self.now() - self.last_heading_time > self.sensor_timeout:
+            return                                                       # no estimate: publish nothing (safe)
         if self.setpoint is None:                                        # no setpoint yet: hold the current heading
             self.setpoint = heading
             self.get_logger().info(f'holding the initial heading {heading:.1f} deg')
@@ -107,7 +96,7 @@ def main(args=None):
     node = HeadingControlNode()
     try:
         rclpy.spin(node)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, ExternalShutdownException):
         pass
     finally:
         node.destroy_node()

@@ -13,6 +13,5 @@ heading_control:
     ki: 0.02
     max_bias_deg: 30.0             # bias limit: keeps a useful flapping amplitude on the fin (limit ±60°)
     filter_window_s: 0.0           # heading averaged over this window; 0 = one flapping period
-    declination_deg: -1.0          # Brest: magnetic north about 1° west of true north
     control_rate_hz: 20.0
-    sensor_timeout_s: 0.5          # no magnetometer for this long: stop publishing (the robot stops)
+    sensor_timeout_s: 0.5          # no estimated heading for this long: stop publishing (the robot stops)
