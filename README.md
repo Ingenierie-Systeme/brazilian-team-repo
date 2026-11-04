@@ -33,6 +33,8 @@ Pedro ALVES DE ARAUJO SILVA, Daniel FARLEI SILVA SOUZA, Matheus BENIGNO DA SILVA
 - [Current status](#current-status)
 - [How the robot works](#how-the-robot-works)
 - [The physical robot](#the-physical-robot)
+- [Electrical design](#electrical-design)
+- [Project cost](#project-cost)
 - [The simulator](#the-simulator)
 - [The software](#the-software)
 - [Results so far](#results-so-far)
@@ -51,6 +53,7 @@ Pedro ALVES DE ARAUJO SILVA, Daniel FARLEI SILVA SOUZA, Matheus BENIGNO DA SILVA
 | Depth regulation | Planned |
 | Position estimation, waypoints and missions | Planned |
 | Robot drivers (ROS 2) | Written, tested only on a fake board |
+| Electrical schematic and cost study | Done |
 | Real robot | In assembly; **no test in the water yet** |
 
 ## How the robot works
@@ -84,17 +87,47 @@ Built on the base design given in the course (tube, dome, rails and mounts), wit
 
 ![CAD of some of the parts designed by the team](Docs/images/robot/cad_parts.jpg)
 
+![Main electronic components](Docs/images/robot/components.jpg)
+
 | Component | Role |
 | --- | --- |
-| Raspberry Pi 4 | Onboard computer: Ubuntu 24.04, ROS 2 Jazzy |
+| Raspberry Pi 4 (2 GB) | Onboard computer: Ubuntu 24.04, ROS 2 Jazzy |
 | Blue Robotics Navigator | Board on the Raspberry Pi: IMU, magnetometer, servo outputs |
 | Bar30 pressure sensor | Depth |
-| Hitec D955TW in a waterproof case | Tail servo, outside the tube |
+| ELP 16 MP USB camera | Front camera, behind the dome |
+| Hitec D-955TW in a Blue Trail Engineering underwater servo kit | Tail servo, outside the tube |
 | Hitec HS-5496MH | Moving-mass servo, inside the tube |
-| LiPo battery, power module and BEC | Power for the electronics and the servos |
-| Acrylic tube and dome (Ø110 × 400 mm) | Waterproof hull; the camera looks through the dome |
+| LiPo battery 2S, 7.4 V, 5700 mAh | Power source |
+| PM02 V3.2 power module and 5 V, 6 A supply | Power distribution for the electronics |
+| Blue Robotics watertight enclosure (Ø110 × 400 mm tube and dome) | Waterproof hull |
 
 Total length: about 0.81 m with the tail. The simulator assumes about 4.7 kg, which makes the robot neutral in water; the real mass still has to be measured.
+
+## Electrical design
+
+The battery feeds the power module, which supplies the servos directly at 7.4 V and the electronics through a 5 V supply. The Raspberry Pi commands the servos with PWM signals through the Navigator board, reads the pressure sensor over I2C and the camera over USB.
+
+![Electrical diagram of the robot](Docs/images/electrical_diagram.png)
+
+## Project cost
+
+Estimated total: **about €9,440**, of which about 87 % is labor. The detail, sources and assumptions are in the [budget spreadsheet](Docs/AUV_Project_Budget.xlsx).
+
+| Category | Details | Cost |
+| --- | --- | --- |
+| Hardware | 14 items, without shipping and taxes | €1,183 |
+| Labor | 270 h planned (240 h in class, 30 h outside) at €27.79/h, based on a junior engineer | €7,504 |
+| Contingency | 10 % of the labor | €750 |
+| **Total** | | **€9,438** |
+
+| Largest hardware items | Cost |
+| --- | --- |
+| Watertight enclosure | €376 |
+| Navigator board | €196 |
+| Underwater servo kit | €165 |
+| Hitec D-955TW servo | €104 |
+
+**Proposed new components, not included in the total:** GNSS receiver (€49) and Ping sonar altimeter (€383).
 
 ## The simulator
 
@@ -245,5 +278,4 @@ Tools/
 1. Integrate software and robot: install, calibrate and run the [first tests](Docs/Robot_Setup.md).
 2. Waterproofing, balancing and tests in the basin, with videos.
 3. Compare the simulator with the real robot and adjust it.
-4. Depth regulation, then position estimation and missions.
-5. Electrical schematic and study of the project cost.
+4. Depth regulation, then waypoints and missions.
