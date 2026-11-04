@@ -17,11 +17,13 @@ import math
 import rclpy
 from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
+from rclpy.signals import SignalHandlerOptions
 from sensor_msgs.msg import Imu
 from std_msgs.msg import Float64
 
 from .depth_filter import DepthFilter
 from .heading import heading_from_quaternion, roll_pitch_from_quaternion, wrap_360
+from .shutdown import install_stop_handlers
 
 
 class NavigationNode(Node):
@@ -42,6 +44,7 @@ class NavigationNode(Node):
         self.pub_pitch = self.create_publisher(Float64, 'state/pitch', 10)
         self.pub_depth = self.create_publisher(Float64, 'state/depth', 10)
         self.pub_depth_rate = self.create_publisher(Float64, 'state/depth_rate', 10)
+        self.create_timer(0.1, lambda: None)                             # wakes the node, so it notices a stop request
         self.get_logger().info('navigation ready, waiting for the attitude and the depth')
 
     def on_attitude(self, msg):
@@ -69,7 +72,8 @@ class NavigationNode(Node):
 
 
 def main(args=None):
-    rclpy.init(args=args)
+    rclpy.init(args=args, signal_handler_options=SignalHandlerOptions.NO)
+    install_stop_handlers()
     node = NavigationNode()
     try:
         rclpy.spin(node)

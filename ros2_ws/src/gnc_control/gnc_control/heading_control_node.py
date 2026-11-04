@@ -19,10 +19,12 @@ watchdog of the simulator or of tail_oscillator then stops the flapping after 0.
 import rclpy
 from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
+from rclpy.signals import SignalHandlerOptions
 from std_msgs.msg import Float64
 
 from .heading import CircularMovingAverage, wrap_360
 from .heading_controller import HeadingPI
+from .shutdown import install_stop_handlers
 
 
 class HeadingControlNode(Node):
@@ -92,7 +94,8 @@ class HeadingControlNode(Node):
 
 
 def main(args=None):
-    rclpy.init(args=args)
+    rclpy.init(args=args, signal_handler_options=SignalHandlerOptions.NO)
+    install_stop_handlers()
     node = HeadingControlNode()
     try:
         rclpy.spin(node)

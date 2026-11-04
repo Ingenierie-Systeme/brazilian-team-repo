@@ -179,7 +179,7 @@ All scripts compile **without errors or warnings** in Unity 6.
 
 In the top view (orthographic, water hidden), the thick lines fall at x = −5, 0, 5 and z = −10, −5, 0, 5, 10, and the inner edges coincide with grid lines. In the underwater view, the fog also applies to the grid shader.
 
-A video of the simulation is available in `media/basin_simulation.mp4`.
+An animation of the simulation is available in `media/basin_simulation.gif`.
 
 ## 5. How to open and test
 

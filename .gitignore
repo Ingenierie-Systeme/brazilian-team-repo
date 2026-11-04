@@ -85,3 +85,6 @@ __pycache__/
 /ros2_ws/build/
 /ros2_ws/install/
 /ros2_ws/log/
+
+# Videos: too heavy for the repository, the GIFs in Docs/media are kept
+*.mp4
