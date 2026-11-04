@@ -34,7 +34,7 @@ Navigation, guidance and control run as ROS 2 nodes; the Unity simulation is the
 | 2 | Heading control: ROS 2 package `gnc_control`, node `heading_control` (section 5) | done |
 | 2b | Tail oscillator of the real robot and common topics of the simulation and the robot (section 6) | done, not yet tested on the robot |
 | 3a | Navigation: orientation, heading, depth and vertical speed; nodes `fusion` and `navigation` (section 7) | done, not yet tested on the robot |
-| 3b | Navigation: position | planned |
+| 3b | Navigation: position by dead reckoning, `/state/odom` (section 8) | done, not yet calibrated on the robot |
 | – | Drivers and start of the real robot: package `auv_hardware` ([Robot_Setup.md](Robot_Setup.md)) | written, tested on a fake board only |
 | 4 | Depth control | planned |
 | 5 | Guidance (setpoints, waypoints, mission) | planned |
@@ -559,3 +559,92 @@ To close the loop with the heading controller, continue with terminals 3 to 5 of
 - Not tested on the robot yet. The real sensor errors may be larger, and they may vary with the temperature and the current of the servos.
 - The magnetic field of the simulation is uniform. The real basin may have disturbances that a calibration cannot remove.
 - The time step assumes that the driver keeps its rate: if many IMU messages are lost, the estimate lags until the magnetometer corrects it.
+
+## 8. Step 3b: position by dead reckoning
+
+The node `navigation` also estimates where the robot is and publishes it on `/state/odom` (`nav_msgs/Odometry`). Guidance by waypoints will use it.
+
+### 8.1 Design
+
+The robot has no speed sensor and, under water, no absolute position. Integrating the accelerometer twice diverges within seconds, so the position comes from the flapping commands:
+
+1. **Speed:** a table frequency × amplitude, measured in the simulation ([RobotFish_Model.md](RobotFish_Model.md#51-tail-flapping)) and interpolated, with a first-order delay of 1.2 s. No single formula fits the three amplitudes of the table.
+2. **Position:** `north += v·cos(pitch)·cos(heading)·dt`, `west -= v·cos(pitch)·sin(heading)·dt`, with the heading and pitch of the navigation.
+3. **No flapping command for 0.5 s:** the speed goes to 0. **No attitude for 0.5 s:** the position is neither updated nor published.
+4. **Optional GNSS:** each valid fix on `/gnss/fix` pulls the position with a gain of 0.05, since a fix has an error of a few meters. The first fix only sets the reference. The real robot has no GNSS receiver for now (proposed component), and a fix is unlikely inside the building.
+
+| Field of `/state/odom` | Content |
+| --- | --- |
+| `pose.pose.position` | x north, y west [m], origin at the start; z = −depth |
+| `pose.pose.orientation` | body → world, relative to true north |
+| `twist.twist.linear.x` | estimated speed [m/s] |
+| `twist.twist.angular` | gyroscope, as received |
+
+### 8.2 Results (simulation, closed loop through ROS 2)
+
+`Basin_Grid`. The reference integrates the noise-free `/ins/velocity` with the perfect orientation, used only to evaluate; it stays within about 0.3 m of the Unity position. `/gnss/ground_truth` could not be used, since it is only published at the surface.
+
+| Test | Distance | Largest error | Error at the end |
+| --- | --- | --- | --- |
+| U-turns, 30° of amplitude | 21.4 m | 1.06 m | 0.25 m |
+| Square, 15° of amplitude | 16.5 m | 0.87 m | 0.52 m |
+
+**Read the largest error, not the error at the end:** both paths come back close to their start, so the errors of the two directions partly cancel. The estimated speed is 9 to 13 % too high on these paths, because the table was measured in a straight line and the robot slows down in turns.
+
+Unit tests: `ros2_ws/src/gnc_control/test/test_dead_reckoning.py`. The GNSS correction has only been tested there, not with Unity.
+
+### 8.3 Limitations
+
+- **The table comes from the simulation.** On the robot, calibrate `speed_scale` with a timed swim ([Robot_Setup.md](Robot_Setup.md)). Before that, the real position can be far off.
+- The error grows with the distance, with nothing to correct it under water.
+- Turns and water currents are not modeled.
+- Only the flapping commands drive the estimate, so swimming with the keyboard in Unity does not move it.
+
+### 8.4 Running it
+
+**Once: build the workspace** (needs ROS 2 Jazzy, and `imufusion`, section 7.6):
+
+```bash
+source /opt/ros/jazzy/setup.bash
+cd <path to>/brazilian-team-repo/ros2_ws
+colcon build --symlink-install
+colcon test --packages-select gnc_control
+colcon test-result --verbose
+```
+
+**Terminal 1: ROS-TCP-Endpoint** (workspace with the endpoint, see [AUV_Sensors.md](AUV_Sensors.md#5-running-with-ros-2)):
+
+```bash
+source /opt/ros/jazzy/setup.bash
+export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
+cd ~/ros2_ws && source install/setup.bash
+ros2 run ros_tcp_endpoint default_server_endpoint --ros-args -p ROS_IP:=127.0.0.1
+```
+
+**Unity:** open `Assets/TestBasin/Scenes/Basin_Grid.unity`, press Play and click the Game view.
+
+**Terminal 2: navigation:**
+
+```bash
+source /opt/ros/jazzy/setup.bash
+export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
+cd <path to>/brazilian-team-repo/ros2_ws && source install/setup.bash
+ros2 launch gnc_control navigation.launch.py
+```
+
+**Terminal 3: heading control** (the robot starts swimming after about 3 s):
+
+```bash
+source /opt/ros/jazzy/setup.bash
+export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
+cd <path to>/brazilian-team-repo/ros2_ws && source install/setup.bash
+ros2 launch gnc_control heading_control.launch.py
+```
+
+**Terminal 4: watch the position** (x grows while the robot swims north; Ctrl+C):
+
+```bash
+source /opt/ros/jazzy/setup.bash
+export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
+ros2 topic echo /state/odom --field pose.pose.position
+```
