@@ -16,9 +16,11 @@ the estimate then stop, and their actuators go to the safe state.
 import rclpy
 from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
+from rclpy.signals import SignalHandlerOptions
 from sensor_msgs.msg import Imu, MagneticField
 
 from .attitude_filter import AttitudeFilter
+from .shutdown import install_stop_handlers
 
 
 class FusionNode(Node):
@@ -52,6 +54,7 @@ class FusionNode(Node):
         self.create_subscription(Imu, 'imu/data', self.on_imu, 10)
         self.create_subscription(MagneticField, 'imu/mag', self.on_mag, 10)
         self.pub = self.create_publisher(Imu, 'state/attitude', 10)
+        self.create_timer(0.1, lambda: None)                             # wakes the node, so it notices a stop request
         self.get_logger().info('fusion ready, waiting for the IMU and the magnetometer')
 
     def now(self):
@@ -89,7 +92,8 @@ class FusionNode(Node):
 
 
 def main(args=None):
-    rclpy.init(args=args)
+    rclpy.init(args=args, signal_handler_options=SignalHandlerOptions.NO)
+    install_stop_handlers()
     node = FusionNode()
     try:
         rclpy.spin(node)

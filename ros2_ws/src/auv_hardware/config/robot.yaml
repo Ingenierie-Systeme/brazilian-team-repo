@@ -1,0 +1,63 @@
+# Parameters of all the nodes on the real robot (launch/robot.launch.py). See Docs/Robot_Setup.md.
+# TO MEASURE marks the values that must be set on the robot; the current values are only starting points.
+navigator:
+  ros__parameters:
+    imu_rate_hz: 100.0             # same value as sample_rate_hz of fusion
+    mag_rate_hz: 20.0
+    command_timeout_s: 0.5         # no command for this long: servo to the center
+    tail_channel: 0                # TO CHECK: PWM output of the tail servo
+    mass_channel: 1                # TO CHECK: PWM output of the moving-mass servo
+    mass_invert: false             # TO CHECK: true if a positive command moves the mass backward
+    mass_limit: 1.0                # TO CHECK: reduce it if the mass reaches a stop before ±1
+
+barometer:
+  ros__parameters:
+    rate_hz: 10.0
+    i2c_bus: 6                     # external I2C port of the Navigator
+    water_density: 1000.0          # TO CHECK: density of the basin water [kg/m³], fresh 997, sea 1029
+    surface_samples: 10            # readings averaged for the zero of the depth
+
+fusion:
+  ros__parameters:
+    sample_rate_hz: 100.0          # same value as imu_rate_hz of navigator
+    gain: 0.5
+    acceleration_rejection_deg: 10.0
+    magnetic_rejection_deg: 10.0
+    rejection_timeout_s: 5.0
+    sensor_timeout_s: 0.5
+    axes: PXPYPZ                   # TO CHECK: sensor axes to body FLU (imufusion alignment name)
+    gyro_scale: 0.25               # TO CHECK with a turn test: value used by the code of the course
+    gyro_offset: [0.0, 0.0, 0.0]   # TO MEASURE: tool_calib-gyro.py
+    accel_offset: [0.0, 0.0, 0.0]  # TO MEASURE: tool_calib-accel.py
+    accel_matrix: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]   # TO MEASURE: tool_calib-accel.py, by rows
+    mag_hard: [0.0, 0.0, 0.0]      # TO MEASURE: tool_calib-mag-fit.py, hard-iron offset v [µT]
+    mag_soft: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]       # TO MEASURE: tool_calib-mag-fit.py, matrix M, by rows
+
+navigation:
+  ros__parameters:
+    declination_deg: -1.0          # Brest: magnetic north about 1° west of true north
+    depth_rate_hz: 10.0            # same value as rate_hz of barometer
+    depth_alpha: 0.2
+    depth_beta: 0.02
+
+tail_oscillator:
+  ros__parameters:
+    max_tail_frequency_hz: 3.0
+    max_tail_angle_deg: 60.0
+    servo_range_deg: 60.0          # TO MEASURE: fin angle reached with servo command 1 (2000 µs)
+    invert: false                  # TO CHECK: true if a positive command moves the fin to the left
+    rate_hz: 50.0
+    command_timeout_s: 0.5
+
+heading_control:
+  ros__parameters:
+    cruise_frequency_hz: 1.5
+    cruise_amplitude_deg: 15.0     # start small: the servo limits were only estimated in the simulation
+    max_tail_frequency_hz: 3.0
+    max_tail_angle_deg: 60.0
+    kp: 1.5                        # TO CHECK: tuned in the simulation
+    ki: 0.02
+    max_bias_deg: 30.0
+    filter_window_s: 0.0
+    control_rate_hz: 20.0
+    sensor_timeout_s: 0.5

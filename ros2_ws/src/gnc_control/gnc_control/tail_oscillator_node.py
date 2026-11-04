@@ -14,7 +14,6 @@ Safety: without commands for `command_timeout_s`, the node keeps publishing the 
 stopped (Ctrl+C or SIGTERM), it publishes the center once more. If the node crashes nothing is published, so the
 servo driver needs its own watchdog.
 """
-import signal
 import time
 
 import rclpy
@@ -23,6 +22,7 @@ from rclpy.node import Node
 from rclpy.signals import SignalHandlerOptions
 from std_msgs.msg import Float64
 
+from .shutdown import install_stop_handlers
 from .tail_oscillator import TailOscillator, fin_to_servo
 
 
@@ -83,16 +83,10 @@ class TailOscillatorNode(Node):
         time.sleep(0.1)                                                  # time for the message to leave
 
 
-def stop_on_signal(signum, frame):
-    """Ctrl+C (SIGINT) and a stop request (SIGTERM, e.g. from a launch file or a service) end rclpy.spin()."""
-    raise KeyboardInterrupt
-
-
 def main(args=None):
     # Without the signal handler of rclpy, ROS stays alive after a stop request, so the node can still center the fin.
     rclpy.init(args=args, signal_handler_options=SignalHandlerOptions.NO)
-    signal.signal(signal.SIGINT, stop_on_signal)
-    signal.signal(signal.SIGTERM, stop_on_signal)
+    install_stop_handlers()
     node = TailOscillatorNode()
     try:
         rclpy.spin(node)

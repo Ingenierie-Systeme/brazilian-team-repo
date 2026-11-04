@@ -35,6 +35,7 @@ Navigation, guidance and control run as ROS 2 nodes; the Unity simulation is the
 | 2b | Tail oscillator of the real robot and common topics of the simulation and the robot (section 6) | done, not yet tested on the robot |
 | 3a | Navigation: orientation, heading, depth and vertical speed; nodes `fusion` and `navigation` (section 7) | done, not yet tested on the robot |
 | 3b | Navigation: position | planned |
+| – | Drivers and start of the real robot: package `auv_hardware` ([Robot_Setup.md](Robot_Setup.md)) | written, tested on a fake board only |
 | 4 | Depth control | planned |
 | 5 | Guidance (setpoints, waypoints, mission) | planned |
 | 6 | Launch file and evaluation | planned |

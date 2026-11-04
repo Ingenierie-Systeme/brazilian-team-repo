@@ -1,82 +1,249 @@
-# BrazilianTeamRepository
+# Robot fish: a micro-AUV and its simulator
 
-## Test basin simulation
+A small autonomous underwater robot that swims like a fish, and the 3D simulator used to develop its software before it goes into the water.
 
-Unity simulation of the 20 m × 12 m × 6 m test basin used to validate the robot fish.
+Project of the **Brazilian Team** for the *System Engineering* course 2026–2027 at ENSTA (Brest, France). In this course, four teams design, build and program a micro-AUV (Autonomous Underwater Vehicle) and its realistic Unity and ROS 2 simulation, in contact with a client through regular meetings.
 
-![Test basin simulation](Docs/media/basin_simulation.gif)
+![The robot fish swimming in the simulator](Docs/media/robot_fish_flapping_2x.gif)
 
-- **Unity:** 6000.6.5f1, URP.
-- **Scenes:** `Assets/TestBasin/Scenes/Basin_Grid.unity` (1 m metric grid, for visual debugging) and `Assets/TestBasin/Scenes/Basin_NoGrid.unity` (plain walls, closer to reality for vision algorithms). Both use the same `TestBasin` prefab and differ only by the basin material.
-- **Features:** procedural basin, water volume, underwater fog, metric grid shader, the robot fish (`Assets/AUV/`) swimming inside the basin, and a ground-truth logger that writes the robot pose to CSV.
-- **Controls:** Space = swim (tail flapping), A/D = turn (while swimming), W/S = pitch (moving mass), Q/E = test ballast (simulation only), C = free camera (right mouse + WASD).
+*The simulated robot swimming, diving, climbing and turning (2× speed).*
 
-Open the project with Unity Hub (*Add project from disk*), load one of the scenes and press Play. See [Docs/TestBasin.md](Docs/TestBasin.md) for details.
+<table>
+  <tr>
+    <td width="42%"><img src="Docs/images/robot/hull_assembled.jpg" alt="The real robot during assembly: transparent tube with the electronics, moving mass and dorsal fin"></td>
+    <td>
+      <b>The real robot during assembly</b><br><br>
+      A transparent tube holds the computer, the battery and a sliding weight. A dorsal fin keeps it stable, and a tail fin, added at the back, makes it swim.<br><br>
+      <b>In short</b>
+      <ul>
+        <li><b>No propeller:</b> one servo flaps the tail fin to swim and steer.</li>
+        <li><b>No ballast:</b> a sliding weight tilts the robot, which then dives or climbs while it swims.</li>
+        <li><b>Same software in simulation and on the robot:</b> only the lowest layer, which talks to the hardware, changes.</li>
+      </ul>
+    </td>
+  </tr>
+</table>
 
-## Campus scene
+## Team
 
-Presentation scene: the test basin and the robot fish inside a model of the ENSTA Air-Sea Test Basin building (Brest campus), with the parking lot, trees, a sky and a camera tour from the campus down to the robot (`Assets/Environment/Scenes/AirSeaTestBasin_Campus.unity`, T = tour). Sensors and ROS 2 commands work as in the basin scenes. See [Docs/Campus_Scene.md](Docs/Campus_Scene.md).
+Pedro ALVES DE ARAUJO SILVA, Daniel FARLEI SILVA SOUZA, Matheus BENIGNO DA SILVA, Leticia LIE FURUTA, Pedro BARBOSA NORI and Luiz Felipe BARROS ALVES.
 
-![Campus scene](Docs/images/campus_aerial.png)
+## Contents
 
-## Robot fish
+- [Current status](#current-status)
+- [How the robot works](#how-the-robot-works)
+- [The physical robot](#the-physical-robot)
+- [The simulator](#the-simulator)
+- [The software](#the-software)
+- [Results so far](#results-so-far)
+- [Try it](#try-it)
+- [Repository layout](#repository-layout)
+- [Documentation](#documentation)
+- [Limitations and next steps](#limitations-and-next-steps)
 
-The real robot is a robot fish: no propeller and no ballast. A tail fin flapped side to side by a servo gives propulsion and steering (simulated with the reactive forces of the water on the fin, about 0.7 m/s at 1.5 Hz), and a moving mass sliding along the tube axis tilts it so that it changes depth while swimming forward. The simulation model is built from the CAD: mass budget, buoyancy over the real displaced volume, water drag, moving mass and fins. The basin scenes use `RobotFishDetailed`, made of the CAD parts with a transparent hull, whose moving mass and tail move with the commands (a lightweight `RobotFish` prefab with simple shapes has the same physics).
+## Current status
 
-![Detailed robot fish in the simulation](Docs/images/robot_fish_detailed_side.png)
+| Part | Status |
+| --- | --- |
+| Simulator: basin, campus scene, physics, sensors, actuators | Done, not yet calibrated against the real robot |
+| Heading following | Done and tested in simulation |
+| Orientation and depth estimation from the raw sensors | Done and tested in simulation |
+| Depth regulation | Planned |
+| Position estimation, waypoints and missions | Planned |
+| Robot drivers (ROS 2) | Written, tested only on a fake board |
+| Real robot | In assembly; **no test in the water yet** |
 
-- [Docs/RobotFish_Model.md](Docs/RobotFish_Model.md): the robot and its physical model, tests.
-- [Docs/RobotFish_Assumptions.md](Docs/RobotFish_Assumptions.md): every value that is still an estimate, and what to measure on the real robot.
-- [Docs/RobotFish_CAD_Report.md](Docs/RobotFish_CAD_Report.md): properties computed from the CAD by [Tools/cad_analysis](Tools/cad_analysis/README.md), which also converts the CAD parts for Unity.
+## How the robot works
 
-## AUV sensors and ROS 2
+| Function | How it is done |
+| --- | --- |
+| **Swimming** | A servo flaps the tail fin from side to side. In the simulation, 1.5 Hz with an amplitude of 30° gives about 0.7 m/s |
+| **Turning** | The flapping is shifted to one side (the *bias*). The robot only turns while it swims |
+| **Changing depth** | A weight slides along the tube. Forward, the nose goes down and the robot dives; backward, it climbs. This also only works while swimming |
+| **Staying upright** | The center of mass is below the center of buoyancy, so the robot returns to level by itself |
+| **Knowing where it points** | A filter combines the gyroscope, accelerometer and magnetometer. A pressure sensor gives the depth |
 
-The robot carries an RGB camera, an INS (gyroscope, accelerometer, magnetometer), a pressure sensor and a GNSS receiver (fix only at the surface). They publish through the ROS-TCP-Connector:
+## The physical robot
 
-| Topic                        | Message                                             |
-| ---------------------------- | --------------------------------------------------- |
-| `/camera/compressed_image` | `sensor_msgs/CompressedImage` (JPEG)              |
-| `/imu/data`, `/imu/mag`  | `sensor_msgs/Imu`, `sensor_msgs/MagneticField`  |
-| `/pressure`, `/depth`    | `sensor_msgs/FluidPressure`, `std_msgs/Float64` |
-| `/gnss/fix`                | `sensor_msgs/NavSatFix`                           |
+Built on the base design given in the course (tube, dome, rails and mounts), with the tail and the sliding-mass mechanism designed by the team in [Onshape](https://www.onshape.com/) and 3D printed.
 
-Start the [ROS-TCP-Endpoint](https://github.com/Unity-Technologies/ROS-TCP-Endpoint/tree/main-ros2) (`ros2 run ros_tcp_endpoint default_server_endpoint --ros-args -p ROS_IP:=127.0.0.1`), then press Play. See [Docs/AUV_Sensors.md](Docs/AUV_Sensors.md).
+<table>
+  <tr>
+    <td width="50%"><img src="Docs/images/robot/hull_side.jpg" alt="Side view of the hull"><br><sub>Side view: moving mass on the left, electronics and battery on the right, on two rails.</sub></td>
+    <td width="50%"><img src="Docs/images/robot/moving_mass.jpg" alt="Moving-mass mechanism"><br><sub>Moving mass: a servo pushes a carriage with metal weights through an arm and a link.</sub></td>
+  </tr>
+  <tr>
+    <td><img src="Docs/images/robot/electronics_tray.jpg" alt="Electronics tray on the rails"><br><sub>Inner structure: rails, Raspberry Pi with the Navigator board, battery tray.</sub></td>
+    <td><img src="Docs/images/robot/electronics_bench.jpg" alt="Electronics tested on the bench"><br><sub>Electronics tested on the bench before the assembly.</sub></td>
+  </tr>
+  <tr>
+    <td><img src="Docs/images/robot/tail_drive.jpg" alt="Tail servo, its support and the rear cap"><br><sub>Tail drive: waterproof servo on its printed support, with the cable going through the rear cap.</sub></td>
+    <td><img src="Docs/images/robot/printing.jpg" alt="3D printing of the fin and the tail support"><br><sub>3D printing of the dorsal fin and the tail support.</sub></td>
+  </tr>
+</table>
 
-## Navigation, guidance and control
+![CAD of some of the parts designed by the team](Docs/images/robot/cad_parts.jpg)
 
-The robot actuators can be commanded from ROS 2 (`std_msgs/Float64`, normalized values):
+| Component | Role |
+| --- | --- |
+| Raspberry Pi 4 | Onboard computer: Ubuntu 24.04, ROS 2 Jazzy |
+| Blue Robotics Navigator | Board on the Raspberry Pi: IMU, magnetometer, servo outputs |
+| Bar30 pressure sensor | Depth |
+| Hitec D955TW in a waterproof case | Tail servo, outside the tube |
+| Hitec HS-5496MH | Moving-mass servo, inside the tube |
+| LiPo battery, power module and BEC | Power for the electronics and the servos |
+| Acrylic tube and dome (Ø110 × 400 mm) | Waterproof hull; the camera looks through the dome |
 
-| Topic            | Actuator                                 |
-| ---------------- | ---------------------------------------- |
-| `/cmd/tail_frequency` | flapping frequency of the tail fin (0 … 1 × 3 Hz) |
-| `/cmd/tail_amplitude` | flapping amplitude (0 … 1 × 60°) |
-| `/cmd/tail_bias` | mean fin angle (−1 … 1 × 60°, + turn right; needs forward speed) |
-| `/cmd/thrust`, `/cmd/rudder` | shortcuts: swim at cruise (1.5 Hz, 30°), turn with a 30° bias |
-| `/cmd/pitch`   | moving mass (+ forward, nose down)       |
-| `/cmd/ballast` | test ballast, simulation only (+ heavier/sink, - lighter/rise) |
+Total length: about 0.81 m with the tail. The simulator assumes about 4.7 kg, which makes the robot neutral in water; the real mass still has to be measured.
 
-The real robot has no ballast, so `/cmd/ballast` only helps to set up simulation tests. Without commands for 0.5 s the actuators stop and the keyboard takes over again. See [Docs/GNC.md](Docs/GNC.md) for the architecture and the status of the GNC work.
+## The simulator
 
-**Heading control** (ROS 2 package `ros2_ws/src/gnc_control`): the node `heading_control` steers the robot to the heading published on `/guidance/heading` with the bias of the flapping (heading from the navigation, averaged over one stroke, PI controller). Build it with `colcon build` in `ros2_ws`, start it with `ros2 launch gnc_control navigation.launch.py` and `ros2 launch gnc_control heading_control.launch.py`; see [Docs/GNC.md, section 5](Docs/GNC.md#5-step-2-heading-control).
+The simulator recreates the ENSTA Air-Sea Test Basin (20 × 12 × 6 m) in **Unity 6** and exchanges data with the software through **ROS 2**, so the code tested here is the code meant for the robot.
 
-**Navigation** (same package): the nodes `fusion` and `navigation` estimate the orientation, heading, depth and vertical speed from the raw sensors and publish them on `/state/*`, and the heading controller uses this estimate. See [Docs/GNC.md, section 7](Docs/GNC.md#7-step-3a-navigation-of-orientation-and-depth).
+![Tour of the simulated campus, from the parking lot to the robot](Docs/media/air_sea_test_basin_tour_2x.gif)
 
-**Tail oscillator** (same package, real robot only): the node `tail_oscillator` turns the flapping commands into the angle of the tail servo on `/servo/tail`, so the GNC nodes are the same in the simulation and on the robot. The common topics are listed in [Docs/GNC.md, section 6](Docs/GNC.md#6-step-2b-from-the-simulation-to-the-real-robot).
+*Camera tour from the campus to the robot (2× speed).*
 
-## Project structure
+| Simulated | Details |
+| --- | --- |
+| **Physics** | Weight, buoyancy over the real displaced volume, hull drag, lift of the dorsal fin, reaction of the water on the flapping tail, moving mass |
+| **Sensors** | RGB camera, IMU, magnetometer, pressure, GNSS (only at the surface), with noise |
+| **Actuators** | Tail servo limited by its speed and torque, moving mass |
+| **Scenes** | Basin with a metric grid, plain basin, and the whole campus for presentations |
+| **Model** | Geometry and masses taken from the CAD |
 
-Unity assets are grouped by feature:
+**About the videos:** the motion of the hull caused by the tail strokes is filtered on the screen, from ±6.4° of yaw in the physics to about ±1° displayed. This only changes the display: sensors, physics and control use the true values. The real motion will be known after the tests in the water. See [RobotFish_Model.md](Docs/RobotFish_Model.md#51-tail-flapping).
+
+## The software
+
+Everything runs as ROS 2 nodes written in Python. The architecture follows the classic split of **navigation** (where am I?), **guidance** (where should I go?) and **control** (how do I get there?), based on the `navigator` package given in the course.
+
+![ROS 2 graph of the robot](Docs/images/ros_graph.png)
+
+- **In the simulation,** Unity replaces the sensors, the servos and `tail_oscillator`, with the same topics.
+- **On the robot,** `navigator` is the only node that talks to the board. Without commands for 0.5 s, the servos return to the center.
+
+| ROS 2 package | Content |
+| --- | --- |
+| [`gnc_control`](ros2_ws/src/gnc_control) | `fusion`, `navigation`, `heading_control`, `tail_oscillator` |
+| [`auv_hardware`](ros2_ws/src/auv_hardware) | `navigator`, `barometer`, launch file and parameters of the robot |
+
+## Results so far
+
+All from the simulation, closed loop through ROS 2. Nothing has been measured on the real robot yet.
+
+| Test (1.5 Hz, amplitude 30°) | Result |
+| --- | --- |
+| Swimming speed | 0.69 m/s |
+| Heading error of the estimate, sensors with calibrated errors | 0.80° rms, 1.53° at most |
+| 180° turn: within ±5° of the target after | 8.4–8.6 s, overshoot below 2° |
+| Same, with uncalibrated sensors | The control fails, so calibration is required on the robot |
+
+## Try it
+
+You need Ubuntu 24.04, [ROS 2 Jazzy](https://docs.ros.org/en/jazzy/Installation.html) and Unity 6000.6.5f1.
+
+**Just the simulator (no ROS 2 needed):** open the project with Unity Hub (*Add project from disk*), open `Assets/TestBasin/Scenes/Basin_Grid.unity`, press Play and click the Game view.
+
+| Key | Action |
+| --- | --- |
+| Space | Swim |
+| A / D | Turn (while swimming) |
+| W / S | Move the mass forward / backward |
+| C | Free camera (right mouse button + WASD) |
+
+**With the heading control.** Once, install the dependencies and build:
+
+```bash
+python3 -m pip install --user --break-system-packages imufusion
+source /opt/ros/jazzy/setup.bash
+mkdir -p ~/ros2_ws/src && cd ~/ros2_ws/src
+git clone -b main-ros2 https://github.com/Unity-Technologies/ROS-TCP-Endpoint.git
+cd ~/ros2_ws && colcon build
+cd <path to>/brazilian-team-repo/ros2_ws
+colcon build --symlink-install --packages-select gnc_control
+```
+
+Terminal 1, bridge between Unity and ROS 2 (then press Play in Unity):
+
+```bash
+source /opt/ros/jazzy/setup.bash
+export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
+cd ~/ros2_ws && source install/setup.bash
+ros2 run ros_tcp_endpoint default_server_endpoint --ros-args -p ROS_IP:=127.0.0.1
+```
+
+Terminal 2, navigation:
+
+```bash
+source /opt/ros/jazzy/setup.bash
+export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
+cd <path to>/brazilian-team-repo/ros2_ws && source install/setup.bash
+ros2 launch gnc_control navigation.launch.py
+```
+
+Terminal 3, heading control (the robot starts swimming after about 3 s):
+
+```bash
+source /opt/ros/jazzy/setup.bash
+export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
+cd <path to>/brazilian-team-repo/ros2_ws && source install/setup.bash
+ros2 launch gnc_control heading_control.launch.py
+```
+
+Terminal 4, ask for a heading in degrees, clockwise from north (Ctrl+C to change it; the basin is small, so watch the walls):
+
+```bash
+source /opt/ros/jazzy/setup.bash
+export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
+ros2 topic pub -r 2 /guidance/heading std_msgs/msg/Float64 "{data: 180.0}"
+```
+
+To run the code on the real robot, follow [Robot_Setup.md](Docs/Robot_Setup.md).
+
+## Repository layout
 
 ```text
 Assets/
-├── TestBasin/   test basin simulation (scripts, grid shader, materials, prefab, scenes)
-├── AUV/         robot fish (physics, sensors, ROS control, CAD models, prefabs, prefab builder) and the original AUV scene
-├── Environment/ campus scene: Air-Sea Test Basin building and surroundings (scene builder, camera tour, materials, textures)
-└── Settings/    URP render pipeline settings
-Docs/            documentation, images and media
+├── AUV/          robot fish: physics, sensors, ROS 2 commands, CAD models, prefabs
+├── TestBasin/    test basin: scenes, grid shader, ground-truth logger
+├── Environment/  campus scene: building, surroundings, camera tour
+└── Settings/     render pipeline settings
+ros2_ws/src/
+├── gnc_control/  navigation and control nodes
+└── auv_hardware/ drivers and launch file of the real robot
+Docs/             documentation, images and videos
 Tools/
-├── cad_analysis/  physical properties of the robot from its CAD, CAD → Unity conversion (Python)
-└── scene_assets/  logo and sign textures of the campus scene (Python)
-ros2_ws/
-└── src/gnc_control/  ROS 2 GNC nodes (Python): navigation, heading control, tail oscillator of the real robot
+├── cad_analysis/  physical properties of the robot from its CAD, CAD to Unity conversion
+└── scene_assets/  logo and sign textures of the campus scene
 ```
+
+## Documentation
+
+| Document | Content |
+| --- | --- |
+| [GNC.md](Docs/GNC.md) | Commands, heading control, navigation: design, tests and how to run them |
+| [Robot_Setup.md](Docs/Robot_Setup.md) | Installation, calibration and first tests on the real robot |
+| [RobotFish_Model.md](Docs/RobotFish_Model.md) | Physical model of the robot and its tests |
+| [RobotFish_Assumptions.md](Docs/RobotFish_Assumptions.md) | Every estimated value, and what to measure on the real robot |
+| [RobotFish_CAD_Report.md](Docs/RobotFish_CAD_Report.md) | Properties computed from the CAD |
+| [AUV_Sensors.md](Docs/AUV_Sensors.md) | Simulated sensors, frames and ROS 2 topics |
+| [TestBasin.md](Docs/TestBasin.md) | Test basin simulation |
+| [Campus_Scene.md](Docs/Campus_Scene.md) | Campus scene |
+
+## Limitations and next steps
+
+**Limitations**
+
+- The simulator is not calibrated yet: drag, water reaction on the tail and masses are estimates, listed in [RobotFish_Assumptions.md](Docs/RobotFish_Assumptions.md).
+- The drivers have only run on a fake board.
+- The simulated robot sinks slowly during long runs, which still has to be understood.
+- The moving mass of the simulation (±150 mm, at the center of the tube) must still be compared with the real mechanism.
+
+**Next steps**
+
+1. Integrate software and robot: install, calibrate and run the [first tests](Docs/Robot_Setup.md).
+2. Waterproofing, balancing and tests in the basin, with videos.
+3. Compare the simulator with the real robot and adjust it.
+4. Depth regulation, then position estimation and missions.
+5. Electrical schematic and study of the project cost.
