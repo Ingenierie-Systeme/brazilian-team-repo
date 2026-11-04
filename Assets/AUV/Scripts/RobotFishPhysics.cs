@@ -95,7 +95,7 @@ public class RobotFishPhysics : MonoBehaviour
     [Tooltip("Small linear damping that keeps the robot from drifting forever at very low speed [N·s/m].")]
     public float linearDamping = 0.1f;
     [Tooltip("Small rotational damping (the hull drag gives almost none in roll) [N·m·s].")]
-    public float angularDamping = 0.05f;
+    public float angularDamping = 0.3f;
 
     // ------------------------------------------------------------------ fins
     [Header("Tail fin (moved by the servo)")]
@@ -159,8 +159,10 @@ public class RobotFishPhysics : MonoBehaviour
     public float addedMassCoefficient = 0.7f;
     [Tooltip("Drag coefficient of the fin moving across its plate (flat plate).")]
     public float finCrossflowDrag = 1.2f;
-    [Tooltip("Adds the water carried by the fin to the yaw inertia of the robot (off: see FinAddedYawInertia).")]
-    public bool finAddedYawInertia = false;
+    [Tooltip("Adds the water carried by the fin to the yaw inertia of the robot (see FinAddedYawInertia).")]
+    public bool finAddedYawInertia = true;
+    [Tooltip("Water carried by the tail and dorsal fins when the robot rolls [kg·m²] (estimate: added mass of each fin × the square of its distance to the axis).")]
+    public float finAddedRollInertia = 0.004f;
     [Tooltip("Number of chordwise strips of the fin, and of rows over its height (the rows see the roll of the robot).")]
     public int tailFinStrips = 8;
     public int tailFinRows = 3;
@@ -297,17 +299,16 @@ public class RobotFishPhysics : MonoBehaviour
         // parallel-axis theorem: each part's inertia about the common center of mass (diagonal terms)
         Vector3 inertia = structureInertia + ParallelAxis(structureMass, structureCenterOfMass - com) + ParallelAxis(movingMass, movingPoint - com);
         if (propulsion == PropulsionModel.TailFlapping && finAddedYawInertia) inertia.y += FinAddedYawInertia(com);
+        inertia.x += finAddedRollInertia;
         rb.inertiaTensor = inertia;
     }
 
     // Water carried by the tail fin when the robot yaws (the fin, far behind the center of mass, moves across
     // its plate). It is part of the inertia instead of a force computed from the robot's own acceleration,
     // which would be unstable (this added inertia is larger than the inertia of the robot itself).
-    // Off by default (finAddedYawInertia): with it, the model dives while swimming. The larger yaw inertia changes the
-    // phase between the roll oscillation (the side force of the fin acts below the center of mass) and the side
-    // force, which then gets a steady vertical component at the tail. This depends on roll dynamics that the model
-    // does not represent well (roll damping and added inertia of the fins), so the simpler, stable option is
-    // the default; the price is a yaw oscillation somewhat larger than with the added inertia.
+    // The force of the fin (ApplyFlappingTail) uses only the acceleration of the servo, not the recoil of the robot, so
+    // without this term the swing of the whole robot is overestimated. With it, the robot also needs the rotational
+    // damping of angularDamping: otherwise the roll combines with the side force of the fin and the robot dives.
     float FinAddedYawInertia(Vector3 com)
     {
         float sum = 0f;

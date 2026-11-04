@@ -16,6 +16,12 @@ using UnityEngine;                                    // core Unity API
 // multiplied by a scale chosen so that the end of the travel matches `referencePitch`: the displayed mass is at
 // the end of the tube when the robot, at rest, would be pitched by `referencePitch`. The scale is never below 1
 // (a heavy mass far from neutral is shown as it is). The physics always uses the real position.
+//
+// Smoothed display of the recoil: the simulated hull swings with each stroke of the tail more than it looked right
+// to the clients, and this swing has not been measured on the real robot yet. While playing, the whole `visualRoot`
+// is shown with a low-pass filtered orientation, so the stroke swing is hidden and the slow motions (turns, dives)
+// remain, with a small delay. Only the display changes: colliders, sensors, physics and control use the true
+// orientation of the Rigidbody, so the image of the robot camera still shows the swing.
 [ExecuteAlways]
 public class RobotFishVisual : MonoBehaviour
 {
@@ -38,16 +44,61 @@ public class RobotFishVisual : MonoBehaviour
     [Tooltip("Exaggerated mode: pitch at rest [deg] that corresponds to the mass displayed at the end of its travel.")]
     [Range(10f, 89f)] public float referencePitch = 45f;
 
+    [Header("Recoil display (visual only)")]
+    [Tooltip("Shows the robot with a smoothed orientation, which hides the swing caused by the strokes of the tail. Does not change the physics or the sensors.")]
+    public bool smoothRecoil = true;
+    [Tooltip("Time constant of each of the two low-pass filters [s]. 0.25 s reduces the swing to about 15 % at 1.5 Hz, with a delay of about 0.5 s on slow motions.")]
+    public float recoilSmoothingTime = 0.25f;
+    [Tooltip("Object with all the visual parts. Empty = the child named Visual. It must not contain colliders or sensors.")]
+    public Transform visualRoot;
+    [Tooltip("A larger difference from the true orientation [deg] is a teleport: the display jumps to it.")]
+    public float recoilSnapAngle = 45f;
+
     [Header("Debug (read-only)")]
     public float displayScale = 1f;                   // displayed offset / real offset
     public float displayedPosition;                   // position of the displayed mass [m], + = forward
 
+    private Quaternion smoothedFirst, smoothedSecond;  // outputs of the two filters of the displayed orientation
+    private bool smoothingStarted;                     // the filters have an initial value
+
+    // Orientation shown on the screen, for the cameras that follow the display
+    public Quaternion DisplayedRotation => visualRoot != null ? visualRoot.rotation : transform.rotation;
+
     void OnEnable()
     {
         if (physics == null) physics = GetComponentInParent<RobotFishPhysics>();
+        if (visualRoot == null) visualRoot = transform.Find("Visual");
+        smoothingStarted = false;
     }
 
-    void LateUpdate() => Refresh();
+    void LateUpdate()
+    {
+        Refresh();
+        UpdateRecoilDisplay();
+    }
+
+    // Two low-pass filters in series on the orientation; the first one hides most of the swing, the second one also
+    // removes the corners, so the displayed motion stays smooth.
+    void UpdateRecoilDisplay()
+    {
+        if (visualRoot == null) return;
+        if (!Application.isPlaying || !smoothRecoil)
+        {
+            visualRoot.localRotation = Quaternion.identity;                    // true orientation, also in edit mode
+            smoothingStarted = false;
+            return;
+        }
+        Quaternion actual = transform.rotation;
+        if (!smoothingStarted || Quaternion.Angle(actual, smoothedSecond) > recoilSnapAngle)
+        {
+            smoothedFirst = smoothedSecond = actual;
+            smoothingStarted = true;
+        }
+        float k = 1f - Mathf.Exp(-Time.deltaTime / Mathf.Max(recoilSmoothingTime, 1e-3f));
+        smoothedFirst = Quaternion.Slerp(smoothedFirst, actual, k);
+        smoothedSecond = Quaternion.Slerp(smoothedSecond, smoothedFirst, k);
+        visualRoot.rotation = smoothedSecond;
+    }
 
     // Places the moving parts from the current actuator state (also callable from editor tools)
     public void Refresh()

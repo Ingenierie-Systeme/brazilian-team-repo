@@ -16,8 +16,8 @@ The simulation of the robot fish relies on values that were not measured on the 
 | 2 | Buoyancy in the basin, for a given moving mass | – | Confirms the displaced volume and the mass together | In the basin, note how much of the robot stays out of the water, or add weight until it barely floats |
 | 3 | Weight of the moving mass in use | 714 g (the weight that makes the robot neutral) | Pitch authority and buoyancy | Weigh it |
 | 4 | Position of the center of mass of the structure | simulation: balanced robot (under the center of buoyancy with the moving mass centered), 10 mm below it (BG); the CAD parts alone would give 18 mm behind and 2.8 mm of BG | Decides where the moving mass rests and how much the robot rolls | Balance the robot (without the moving mass) on a rod across the tube; roll period in the water gives BG |
-| 5 | **Speed of the robot for a few flapping settings** (e.g. 1, 1.5 and 2 Hz at 30°) | simulated: 0.47, 0.71, 0.96 m/s | Calibrates the tail propulsion (added mass coefficient) and the hull drag together | Time it over a known distance in the basin, after the speed has settled |
-| 6 | Roll and depth drift while flapping | simulated: about ±6° of roll, slight climb at high speed | Checks the roll resonance found in the simulation (about 1.4 Hz with BG = 10 mm, [RobotFish_Model.md](RobotFish_Model.md#51-tail-flapping)) | Video from the side and the front, IMU roll, pressure sensor |
+| 5 | **Speed of the robot for a few flapping settings** (e.g. 1, 1.5 and 2 Hz at 30°) | simulated: 0.45, 0.69, 0.90 m/s | Calibrates the tail propulsion (added mass coefficient) and the hull drag together | Time it over a known distance in the basin, after the speed has settled |
+| 6 | Roll and depth drift while flapping | simulated: about ±1.6° of roll and ±6.4° of yaw at cruise; first model: ±5.6° and ±10.1° | Checks the roll resonance found in the simulation (about 1.4 Hz with BG = 10 mm, [RobotFish_Model.md](RobotFish_Model.md#51-tail-flapping)) | Video from the side and the front, IMU roll, pressure sensor |
 | 7 | Whether the servo keeps the amplitude at high frequency | simulated: amplitude drops above ≈ 2 Hz at 30° | Servo torque and speed under the water load | Video from above, compare the real amplitude with the command |
 
 ## 2. Mass budget (`yaml`)
@@ -85,6 +85,8 @@ Each CAD part gets a mass from its CAD volume × an assumed density, or from a d
 | Added mass of the flapping tail fin | 0.7 × the 2D flat-plate value ρ·π·span²/4 per unit chord (≈ 1.3 kg for the whole fin), for the 3D effects of the low aspect ratio | estimate (literature range 0.6–0.8) | prefab: `addedMassCoefficient` |
 | Crossflow drag of the flapping fin | C_D = 1.2 (flat plate) | estimate (literature) | prefab: `finCrossflowDrag` |
 | Fin discretization | 8 strips along the chord × 3 rows over the height | numerical | prefab: `tailFinStrips`, `tailFinRows` |
-| Added inertia of the fin when the robot yaws | ≈ 0.27 kg·m², **not used** (`finAddedYawInertia` off, see [RobotFish_Model.md](RobotFish_Model.md#7-limitations)) | – | prefab: `finAddedYawInertia` |
+| Added inertia of the fins | ≈ 0.27 kg·m² in yaw (computed), 0.004 kg·m² in roll (estimate) | estimate | prefab: `finAddedYawInertia`, `finAddedRollInertia` |
 | Added mass sideways / vertically | 3.8 kg, **not simulated** | – | – |
-| Small linear damping | 0.1 N·s/m, 0.05 N·m·s | estimate (numerical) | prefab: `linearDamping`, `angularDamping` |
+| Small linear damping | 0.1 N·s/m | estimate (numerical) | prefab: `linearDamping` |
+| Display of the recoil | orientation filtered on the screen, 0.25 s × 2, **visual only** | choice for the display | prefab: `smoothRecoil`, `recoilSmoothingTime` |
+| Rotational damping | 0.3 N·m·s | **tuned in the simulation, not measured** (see [RobotFish_Model.md](RobotFish_Model.md#51-tail-flapping)) | prefab: `angularDamping` |
