@@ -36,7 +36,7 @@ Navigation, guidance and control run as ROS 2 nodes; the Unity simulation is the
 | 3a | Navigation: orientation, heading, depth and vertical speed; nodes `fusion` and `navigation` (section 7) | done, not yet tested on the robot |
 | 3b | Navigation: position by dead reckoning, `/state/odom` (section 8) | done, not yet calibrated on the robot |
 | – | Drivers and start of the real robot: package `auv_hardware` ([Robot_Setup.md](Robot_Setup.md)) | written, tested on a fake board only |
-| 4 | Depth control | planned |
+| 4 | Depth control: node `depth_control` (section 9) | done, not yet tested on the robot |
 | 5 | Guidance (setpoints, waypoints, mission) | planned |
 | 6 | Launch file and evaluation | planned |
 
@@ -53,7 +53,7 @@ Each actuator has its own topic, type `std_msgs/Float64`, value normalized:
 | `/cmd/tail_bias` | mean fin angle of the flapping: −1 full left turn, +1 full right turn | −1 … 1 | `maxTailAngle` = 60° |
 | `/cmd/thrust` | shortcut: swim at cruise (flapping 1.5 Hz, amplitude thrust × 30°); negative values do nothing | 0 … 1 | `cruiseFrequency`, `cruiseAmplitude` |
 | `/cmd/rudder` | shortcut: fin bias, −1 full left, +1 full right (turns only while swimming) | −1 … 1 | `rudderAngle` = 30° |
-| `/cmd/pitch` | moving mass on the tube axis: −1 back end (nose up), +1 front end (nose down) | −1 … 1 | 0 = rest position (robot level); `movingMassTravel` = ±150 mm |
+| `/cmd/pitch` | moving mass on the tube axis: −1 back end (nose up), +1 front end (nose down) | −1 … 1 | 0 = rest position (robot level); `movingMassTravel` = ±75 mm |
 | `/cmd/ballast` | test ballast (speed), **simulation only**: −1 lighter (rises), +1 heavier (sinks) | −1 … 1 | `ballastRange` = ±25 % of the volume, `ballastRate` = 12.5 %/s |
 
 Values outside the range are clamped; NaN is read as 0. The shortcuts `/cmd/thrust` and `/cmd/rudder` (also driven by the keyboard) are used only while the three tail commands are 0; the GNC controllers use the tail commands. With the `SimpleThrust` test model, `/cmd/thrust` is a forward force (0.3 N, ≈ 0.3 m/s, −1 = reverse) and `/cmd/rudder` a fixed fin angle (±30°).
@@ -151,14 +151,14 @@ Scripted test in `Basin_Grid`: a ROS 2 node published a command sequence at 20 H
 
 The physics of the robot fish is described in [RobotFish_Model.md](RobotFish_Model.md). For the GNC, the main consequences are:
 
-- **No ballast:** depth is controlled only through the pitch (moving mass) while swimming forward. Vertical speed ≈ forward speed × sin(pitch). With the moving mass heavy enough to be neutral (≈ 2.3 kg), a few centimetres of displacement tilt the robot by tens of degrees and its full travel (±150 mm) makes it vertical, so the depth controller must limit the displacement it commands. Depth control will be a cascade: depth error → desired pitch → moving-mass position.
+- **No ballast:** depth is controlled only through the pitch (moving mass) while swimming forward. Vertical speed ≈ forward speed × sin(pitch). A few centimetres of displacement tilt the robot by tens of degrees, so the depth controller limits the pitch it asks for (section 9).
 - **Weak self-righting:** the center of mass is only about 10 mm below the center of buoyancy (simulation value, set by how low the battery is mounted), so the robot tilts and rolls easily and pitch oscillates slowly after a change; the pitch loop must damp it.
 - **One fin for propulsion and steering:** speed is set by the flapping frequency and amplitude (about 0.7 m/s at 1.5 Hz and 30°, see [RobotFish_Model.md](RobotFish_Model.md#51-tail-flapping)), the heading by the bias of the oscillation (10° of bias: about 8°/s while swimming at cruise). The two are coupled: a large bias reduces the useful amplitude (the fin is limited to ±60°) and the speed.
 - **Turning needs speed:** the bias only steers while the robot swims.
 - **The heading oscillates with each stroke** (±3° to ±10° depending on the amplitude): the heading controller must not try to cancel this oscillation, it should act on the heading averaged over a flapping period (low-pass filter or averaging on the magnetometer/IMU heading).
 - **Servo limits:** above about 2 Hz at 30° the servo can no longer follow the commanded amplitude, and beyond 2.5 Hz the water moment exceeds its stall torque. The controllers should stay within this range.
-- **Roll and depth with flapping:** the flapping makes the robot roll a little (±1.6° at cruise). The simulated robot also sinks slowly during long runs, which still has to be understood before the depth control.
-- **Unknown buoyancy:** it depends on the real masses and on the weight added to the moving mass (the simulation uses the neutral weight, 714 g). The controllers must work for a neutral robot and for a slightly floating one.
+- **Roll and depth with flapping:** the flapping makes the robot roll a little (±1.6° at cruise). The depth control corrects the small errors of buoyancy and of the nose-up moment of the thrust.
+- **Unknown buoyancy:** it depends on the real masses and on the weight added to the moving mass (the simulation uses the neutral weight, 713 g). The controllers must work for a neutral robot and for a slightly floating one.
 
 ## 5. Step 2: heading control
 
@@ -317,7 +317,7 @@ All are `std_msgs/Float64`.
 | `/servo/tail` | −1 … 1 | angle the tail servo must reach now, ±1 = ±500 µs around 1500 µs | not used | servo driver |
 | `/cmd/thrust`, `/cmd/rudder`, `/cmd/ballast` | see section 3 | keyboard-like shortcuts and test ballast | `RobotFishPhysics` | not used |
 
-Sign and range of `/cmd/pitch` on the robot still have to be checked (section 6.5): the simulation uses ±150 mm of travel, and the real travel is not known yet.
+Sign and range of `/cmd/pitch` on the robot still have to be checked (section 6.5): the simulation uses ±75 mm of travel (target design), and the real travel is not known yet.
 
 ### 6.2 Node `tail_oscillator`
 
@@ -593,6 +593,8 @@ The robot has no speed sensor and, under water, no absolute position. Integratin
 
 Unit tests: `ros2_ws/src/gnc_control/test/test_dead_reckoning.py`. The GNSS correction has only been tested there, not with Unity.
 
+These results were obtained before the moving mass of section 9, which does not change the flapping or the speed table.
+
 ### 8.3 Limitations
 
 - **The table comes from the simulation.** On the robot, calibrate `speed_scale` with a timed swim ([Robot_Setup.md](Robot_Setup.md)). Before that, the real position can be far off.
@@ -647,4 +649,150 @@ ros2 launch gnc_control heading_control.launch.py
 source /opt/ros/jazzy/setup.bash
 export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
 ros2 topic echo /state/odom --field pose.pose.position
+```
+
+## 9. Step 4: depth control
+
+The node `depth_control` makes the robot follow a depth setpoint while it swims, with the moving mass. It runs together with `heading_control`, which sets the flapping.
+
+### 9.1 Interface
+
+| Direction | Topic | Type | Content |
+| --- | --- | --- | --- |
+| in | `/guidance/depth` | `std_msgs/Float64` | depth setpoint [m], limited to 0.5–4.5 m. Until the first message, the node holds the depth it measures at start |
+| in | `/state/depth`, `/state/depth_rate`, `/state/pitch` | `std_msgs/Float64` | from the navigation |
+| in | `/state/attitude` | `sensor_msgs/Imu` | pitch rate, from the calibrated gyroscope |
+| in | `/state/odom` | `nav_msgs/Odometry` | estimated speed, to know if the robot swims |
+| out | `/cmd/pitch` | `std_msgs/Float64` | moving mass, −1 … 1, + = forward, nose down, 20 Hz |
+| out | `/gnc/depth_error`, `/gnc/pitch_setpoint` | `std_msgs/Float64` | for monitoring |
+
+If the state stops for 0.5 s, the node stops publishing, and the watchdog centers the moving mass. Parameters: `ros2_ws/src/gnc_control/config/depth_control.yaml`.
+
+### 9.2 Design
+
+The vertical speed is `v·sin(pitch)`, so the controller is a cascade:
+
+1. **Depth → pitch:** `pitch = 30·error + ∫2·error dt − 30·depth rate` [deg, m, s], limited to ±20°. The integral corrects a robot that is not exactly neutral.
+2. **Pitch → moving mass:** the feedforward is the static balance, `Δx = M·BG·tan(pitch) / m`. A small correction, `0.01·e + ∫0.002·e dt − 0.005·pitch rate`, handles what the model misses, such as the nose-up moment of the thrust.
+3. **Not swimming** (estimated speed below 0.1 m/s): pitch setpoint 0, and the integrals do not change. The pitch cannot change the depth at rest, so they would only grow. An integral also stops while its output is saturated.
+
+The gains come from steps of the moving mass in the simulation. The pitch follows the mass in 2 to 3.5 s, without oscillation, and the static balance predicts it within 0.2° (12.6° measured, 12.8° predicted for 15 mm).
+
+**Target robot.** The simulation uses the design the team expects to build: the weight toward the back of the tube and a moving mass between the tube center and the front. The mechanism assembled today moves less and is expected to change.
+
+### 9.3 Results (simulation, closed loop through ROS 2)
+
+`Basin_Grid`, flapping 1.5 Hz, depth steps of ±1 m around 2.5 m, with 180° turns at the same time. Times are measured from the step, and the turns also disturb the depth.
+
+| Test | Within ±0.1 m after | Overshoot | Error at the end |
+| --- | --- | --- | --- |
+| Amplitude 30° (0.69 m/s) | 7–22 s | 0.10–0.17 m | below 0.03 m |
+| Amplitude 15° (0.36 m/s) | 30–32 s | 0.17–0.19 m | below 0.10 m |
+| 0.5 % heavier | 8–21 s | 0.08–0.18 m | below 0.04 m |
+| 0.5 % lighter | 11–17 s | 0.10–0.11 m | below 0.04 m |
+| Sensor at 10 Hz | 7–21 s | 0.09–0.17 m | below 0.03 m |
+
+**Heading during the depth steps** (amplitude 30°, turns of 180°): within ±5° after 8.5–8.6 s, and within ±1.8° at the end of each segment, about the same as without the depth control.
+
+**What the moving mechanism needs.** The same steps with other values of travel and BG. The feedforward knows the true values, except where noted.
+
+| BG | Travel of the moving mass | Result |
+| --- | --- | --- |
+| 10 mm | ±75, ±50, ±25 mm | Works, nearly the same (at ±25 mm the command reaches its limit) |
+| 5 mm, feedforward assumes 10 mm | ±75 mm | Works, with more pitch: up to 29° |
+| 30 mm | ±75 mm | Works |
+| 30 mm, feedforward assumes 10 mm | ±75 mm | **Too slow:** error of 0.2 to 0.3 m after 30 s |
+| 30 mm | ±25 mm | **Fails:** the static pitch at the end of the travel is about ±7°, and the robot does not come back up in time (error of 0.7 m) |
+
+So a travel of ±25 mm may be enough if BG is about 10 mm, and **BG must be measured**, because it decides the travel needed and sets the feedforward. Those results depend on the estimated speed and thrust of the simulation.
+
+Unit tests (`ros2_ws/src/gnc_control/test/test_depth_controller.py`): signs, limits, feedforward, no integral without swimming, anti-windup, and closed-loop steps on the identified model with and without a drift. The behavior when the robot does not swim has only been tested there.
+
+### 9.4 Limitations
+
+- The robot only changes depth while it swims. At rest, a robot that is not neutral keeps rising or sinking.
+- Close to the surface the buoyancy changes, and a tilted robot could come partly out of the water, so setpoints stay below 0.5 m.
+- With the turns, the depth moves by a few centimeters.
+
+### 9.5 Running it
+
+**Once: build the workspace** (needs ROS 2 Jazzy, and `imufusion`, section 7.6):
+
+```bash
+source /opt/ros/jazzy/setup.bash
+cd <path to>/brazilian-team-repo/ros2_ws
+colcon build --symlink-install
+colcon test --packages-select gnc_control
+colcon test-result --verbose
+```
+
+**Terminal 1: ROS-TCP-Endpoint** (workspace with the endpoint, see [AUV_Sensors.md](AUV_Sensors.md#5-running-with-ros-2)):
+
+```bash
+source /opt/ros/jazzy/setup.bash
+export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
+cd ~/ros2_ws && source install/setup.bash
+ros2 run ros_tcp_endpoint default_server_endpoint --ros-args -p ROS_IP:=127.0.0.1
+```
+
+**Unity:** open `Assets/TestBasin/Scenes/Basin_Grid.unity`, press Play and click the Game view.
+
+**Terminal 2: navigation:**
+
+```bash
+source /opt/ros/jazzy/setup.bash
+export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
+cd <path to>/brazilian-team-repo/ros2_ws && source install/setup.bash
+ros2 launch gnc_control navigation.launch.py
+```
+
+**Terminal 3: heading control** (the robot starts swimming after about 3 s):
+
+```bash
+source /opt/ros/jazzy/setup.bash
+export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
+cd <path to>/brazilian-team-repo/ros2_ws && source install/setup.bash
+ros2 launch gnc_control heading_control.launch.py
+```
+
+**Terminal 4: depth control:**
+
+```bash
+source /opt/ros/jazzy/setup.bash
+export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
+cd <path to>/brazilian-team-repo/ros2_ws && source install/setup.bash
+ros2 launch gnc_control depth_control.launch.py
+```
+
+**Terminal 5: turn away from the walls while the robot swims** (Ctrl+C to change it):
+
+```bash
+source /opt/ros/jazzy/setup.bash
+export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
+ros2 topic pub -r 2 /guidance/heading std_msgs/msg/Float64 "{data: 180.0}"
+```
+
+**Terminal 6: give a depth** (Ctrl+C to change it):
+
+```bash
+source /opt/ros/jazzy/setup.bash
+export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
+ros2 topic pub -r 2 /guidance/depth std_msgs/msg/Float64 "{data: 3.5}"
+```
+
+**Terminal 7: watch it** (goes to about 0 after the step; Ctrl+C):
+
+```bash
+source /opt/ros/jazzy/setup.bash
+export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
+ros2 topic echo /gnc/depth_error
+```
+
+**Scripted test,** instead of terminal 6, which writes a CSV:
+
+```bash
+source /opt/ros/jazzy/setup.bash
+export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
+cd <path to>/brazilian-team-repo/ros2_ws && source install/setup.bash
+ros2 run gnc_control depth_test --ros-args -p sequence:="2.5:10,3.5:30,2.5:30" -p output:=depth.csv
 ```

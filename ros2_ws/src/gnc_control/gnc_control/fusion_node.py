@@ -7,7 +7,8 @@ Subscriptions:
   /imu/data          sensor_msgs/Imu             only the angular velocity and the linear acceleration
   /imu/mag           sensor_msgs/MagneticField   magnetometer [T]
 Publications:
-  /state/attitude    sensor_msgs/Imu             estimated orientation (body FLU → world NWU, magnetic north)
+  /state/attitude    sensor_msgs/Imu             estimated orientation (body FLU → world NWU, magnetic north) and
+                                                 calibrated angular velocity
 
 Safety: nothing is published while the filter converges at start, nor if the magnetometer stops for
 `sensor_timeout_s`. If the IMU stops, nothing is published either, since it drives the node. The nodes that use
@@ -86,7 +87,7 @@ class FusionNode(Node):
         out = Imu()
         out.header = msg.header
         out.orientation.x, out.orientation.y, out.orientation.z, out.orientation.w = self.filter.quaternion
-        out.angular_velocity = msg.angular_velocity
+        out.angular_velocity.x, out.angular_velocity.y, out.angular_velocity.z = self.filter.gyro_rad_s
         out.linear_acceleration = msg.linear_acceleration
         self.pub.publish(out)
 

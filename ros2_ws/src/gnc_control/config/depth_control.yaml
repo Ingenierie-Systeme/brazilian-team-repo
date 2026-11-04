@@ -1,0 +1,22 @@
+# Parameters of the depth controller (gnc_control/depth_control_node.py). See Docs/GNC.md, section 9.
+depth_control:
+  ros__parameters:
+    min_depth_m: 0.5               # shallowest setpoint: keeps the robot away from the surface
+    max_depth_m: 4.5               # deepest setpoint: the basin has 5.5 m of water
+    min_speed_m_s: 0.1             # below this estimated speed, the robot does not swim: pitch setpoint 0
+    control_rate_hz: 20.0
+    sensor_timeout_s: 0.5          # no state for this long: stop publishing
+    # Depth → pitch
+    kp: 30.0                       # [deg of pitch / m of error]
+    ki: 2.0                        # [deg of pitch / (m·s)]: removes the error of a robot that is not neutral
+    kd: 30.0                       # [deg of pitch / (m/s)]
+    max_pitch_deg: 20.0            # limit of the pitch setpoint
+    # Pitch → moving mass
+    kp_pitch: 0.01                 # [command / deg]
+    ki_pitch: 0.002                # [command / (deg·s)]
+    kq: 0.005                      # [command / (deg/s)]: damping from the gyroscope
+    # Feedforward: must describe the robot
+    total_mass_kg: 4.713
+    moving_mass_kg: 0.713
+    bg_m: 0.010                    # distance from the center of buoyancy down to the center of mass
+    moving_mass_travel_m: 0.075    # travel from the rest position to command 1

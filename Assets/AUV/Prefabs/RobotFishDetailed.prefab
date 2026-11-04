@@ -2352,8 +2352,8 @@ MonoBehaviour:
     area: 0.0042
     liftSlope: 1.2
     stallAngle: 25
-  movingMass: 0.714
-  movingMassTravel: 0.15
+  movingMass: 0.713
+  movingMassTravel: 0.075
   movingMassSpeed: 0.05
   movingMassRestPosition: 0
   levelAtRest: 1

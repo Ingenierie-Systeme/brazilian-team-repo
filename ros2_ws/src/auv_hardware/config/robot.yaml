@@ -79,3 +79,22 @@ heading_control:
     filter_window_s: 0.0
     control_rate_hz: 20.0
     sensor_timeout_s: 0.5
+
+depth_control:
+  ros__parameters:
+    min_depth_m: 0.5
+    max_depth_m: 2.0               # TO CHECK: stay shallow in the first tests
+    min_speed_m_s: 0.1
+    control_rate_hz: 20.0
+    sensor_timeout_s: 0.5
+    kp: 30.0                       # TO CHECK: tuned in the simulation
+    ki: 2.0
+    kd: 30.0
+    max_pitch_deg: 10.0            # start small; simulation: 20
+    kp_pitch: 0.01
+    ki_pitch: 0.002
+    kq: 0.005
+    total_mass_kg: 4.713           # TO MEASURE: robot with the moving mass
+    moving_mass_kg: 0.713          # TO MEASURE
+    bg_m: 0.010                    # TO MEASURE: from the roll period in the water
+    moving_mass_travel_m: 0.075    # TO MEASURE: travel at servo command 1

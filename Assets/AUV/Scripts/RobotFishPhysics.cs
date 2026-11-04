@@ -42,10 +42,10 @@ public class RobotFishPhysics : MonoBehaviour
     // The robot carries no ballast: its mass is the structure plus the moving mass. Its buoyancy is therefore a
     // result, not a setting. Two models for how the structure mass is distributed (field `massModel`):
     //   - Simplified (default): the components only matter as a total mass. The structure is balanced like a
-    //     well-trimmed robot: its center of mass is right under the center of buoyancy (B) with the moving mass at
-    //     the tube center, `centerOfMassBelowBuoyancy` (BG) below it, and its inertia is that of a uniform cylinder
-    //     of the hull size. On the real robot this balance is reached by placing the battery and the other
-    //     components; BG is mainly set by how low the battery is mounted.
+    //     well-trimmed robot: with the moving mass at the center of its travel, the center of mass of the whole robot
+    //     is right under the center of buoyancy (B), `centerOfMassBelowBuoyancy` (BG) below it, and its inertia is
+    //     that of a uniform cylinder of the hull size. This target design has the weight toward the back of the tube
+    //     and the moving mass between the tube center and the front. BG is mainly set by how low the battery is.
     //   - Cad: center of mass and inertia from the CAD parts (Docs/RobotFish_CAD_Report.md).
     public enum MassModel { Simplified, Cad }
 
@@ -131,16 +131,21 @@ public class RobotFishPhysics : MonoBehaviour
 
     // ------------------------------------------------------------------ moving mass
     [Header("Moving mass (pitch)")]
-    [Tooltip("Weight that slides along the tube axis [kg]. Adjustable on the real robot; set to the weight that makes the robot neutral (0.714 kg with a 4 kg structure).")]
-    public float movingMass = 0.714f;
-    [Tooltip("Travel from the tube center to each end [m] (tube length minus 5 cm at each end: ±0.15 m).")]
-    public float movingMassTravel = 0.15f;
+    [Tooltip("Weight that slides along the tube axis [kg]. Adjustable on the real robot; set to the weight that makes the robot neutral (0.713 kg with a 4 kg structure).")]
+    public float movingMass = 0.713f;
+    [Tooltip("Center of the travel of the moving mass, ahead of the tube center [m]. Target design: travel from the tube center to the front, 5 cm from the end of the tube.")]
+    public float movingMassCenter = 0.075f;
+    [Tooltip("Travel from the center of the travel to each end [m].")]
+    public float movingMassTravel = 0.075f;
     [Tooltip("Speed of the moving mass [m/s] (estimate: the actuator is not known).")]
     public float movingMassSpeed = 0.05f;
     [Tooltip("Position of the moving mass for a pitch command of 0 [m, + = forward].")]
     public float movingMassRestPosition = 0f;
     [Tooltip("At start, sets the rest position so that the robot rests level when submerged (moving mass right under the center of buoyancy), as an operator would do. Clamped to the travel.")]
     public bool levelAtRest = true;
+
+    public float MovingMassMin => movingMassCenter - movingMassTravel;   // back end of the travel [m, + = forward]
+    public float MovingMassMax => movingMassCenter + movingMassTravel;   // front end of the travel [m, + = forward]
 
     // ------------------------------------------------------------------ propulsion
     public enum PropulsionModel { TailFlapping, SimpleThrust }
@@ -261,7 +266,7 @@ public class RobotFishPhysics : MonoBehaviour
         if (levelAtRest && movingMass > 1e-4f)        // CoM under the CoB: structure·x_s + moving·x_m = mass·x_B
         {
             float x = (mass * centerOfBuoyancy.x - structureMass * structureCenterOfMass.x) / movingMass;
-            movingMassRestPosition = Mathf.Clamp(-x, -movingMassTravel, movingMassTravel);   // forward = −X
+            movingMassRestPosition = Mathf.Clamp(-x, MovingMassMin, MovingMassMax);          // forward = −X
         }
         movingMassPosition = movingMassRestPosition;
         rb.automaticInertiaTensor = false;
@@ -270,9 +275,10 @@ public class RobotFishPhysics : MonoBehaviour
         UpdateMassProperties();
     }
 
-    // Simplified mass model: the structure is balanced so that, with the moving mass at the tube center, the center
-    // of mass of the whole robot is right under the center of buoyancy, BG below it:
-    //   structure·G_s + moving·(0, 0, 0) = total·(B − BG·up)  →  G_s = total·(B − BG·up) / structure.
+    // Simplified mass model: the structure is balanced so that, with the moving mass at the center of its travel (c
+    // ahead of the tube center, forward = −X), the center of mass of the whole robot is right under the center of
+    // buoyancy, BG below it:
+    //   structure·G_s + moving·(−c, 0, 0) = total·(B − BG·up)  →  G_s = (total·(B − BG·up) + moving·(c, 0, 0)) / structure.
     // Inertia of the structure: uniform solid cylinder of the hull size (tube radius, dome tip to rear cap),
     //   roll = ½·m·r², pitch = yaw = m·(3·r² + L²)/12, plus the added inertia of the water in pitch and yaw.
     void SetSimplifiedMassModel()
@@ -280,7 +286,7 @@ public class RobotFishPhysics : MonoBehaviour
         float total = structureMass + movingMass;
         Vector3 target = centerOfBuoyancy + Vector3.down * centerOfMassBelowBuoyancy;
         target.z = 0f;                                                     // laterally centered
-        structureCenterOfMass = total * target / structureMass;
+        structureCenterOfMass = (total * target + movingMass * movingMassCenter * Vector3.right) / structureMass;
         float r = tubeRadius;
         float length = domeRadius + 2f * capThickness + tubeLength;       // dome tip to rear cap
         float across = structureMass * (3f * r * r + length * length) / 12f;
@@ -369,7 +375,7 @@ public class RobotFishPhysics : MonoBehaviour
         // moving mass: 0 = rest position, +1 = front end, −1 = back end; it moves at a limited speed
         float cmd = Mathf.Clamp(pitchCommand, -1f, 1f);
         float rest = movingMassRestPosition;
-        float target = cmd >= 0f ? rest + cmd * (movingMassTravel - rest) : rest + cmd * (rest + movingMassTravel);
+        float target = cmd >= 0f ? rest + cmd * (MovingMassMax - rest) : rest + cmd * (rest - MovingMassMin);
         movingMassPosition = Mathf.MoveTowards(movingMassPosition, target, movingMassSpeed * dt);
         UpdateMassProperties();
 
