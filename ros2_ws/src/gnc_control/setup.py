@@ -18,7 +18,7 @@ setup(
     zip_safe=True,
     maintainer='pedrohaas',
     maintainer_email='pedrohaa.silva@gmail.com',
-    description='Control nodes of the robot fish: heading control and tail oscillator of the real robot.',
+    description='Navigation and control nodes of the robot fish.',
     license='MIT',
     tests_require=['pytest'],
     entry_points={
@@ -26,6 +26,8 @@ setup(
             'heading_control = gnc_control.heading_control_node:main',   # heading controller
             'heading_test = gnc_control.heading_test_node:main',         # scripted heading setpoints + CSV log
             'tail_oscillator = gnc_control.tail_oscillator_node:main',   # real robot: flapping → tail servo angle
+            'fusion = gnc_control.fusion_node:main',                     # orientation from the raw sensors
+            'navigation = gnc_control.navigation_node:main',             # heading, depth and vertical speed
         ],
     },
 )

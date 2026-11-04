@@ -3,13 +3,15 @@
 <package format="3">
   <name>gnc_control</name>
   <version>0.1.0</version>
-  <description>Control nodes of the robot fish (Brazilian Team, ENSTA): heading control and tail oscillator of the real robot.</description>
+  <description>Navigation and control nodes of the robot fish (Brazilian Team, ENSTA).</description>
   <maintainer email="pedrohaa.silva@gmail.com">pedrohaas</maintainer>
   <license>MIT</license>
 
   <exec_depend>rclpy</exec_depend>
   <exec_depend>std_msgs</exec_depend>
   <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>python3-numpy</exec_depend>
+  <!-- imufusion is not a rosdep key: python3 -m pip with the break-system-packages option, see Docs/GNC.md -->
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>
 
