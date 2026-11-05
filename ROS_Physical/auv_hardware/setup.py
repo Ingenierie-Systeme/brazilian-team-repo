@@ -27,7 +27,6 @@ setup(
             'navigator_node = auv_hardware.navigator_node:main',
             'bar30_publisher = auv_hardware.bar30_publisher:main',
             'camera_publisher = auv_hardware.camera_publisher:main',
-            'teleop_controller = auv_hardware.teleop_controller:main',
         ],
     },
 )
