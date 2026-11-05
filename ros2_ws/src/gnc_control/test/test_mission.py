@@ -122,6 +122,23 @@ def test_state_lost_stops_at_once(t):
     assert at(runner, t + 1.0).phase == mp.STOPPED                      # the state coming back does not restart it
 
 
+def test_state_lost_when_the_delay_ends_stops():
+    runner = timed()
+    assert at(runner, 0.0).phase == mp.DELAY
+    delay = runner.mission.start_delay_s
+    assert runner.update(delay / 2.0).phase == mp.DELAY                 # the tail is stopped: the delay can go on
+    out = runner.update(delay + 1.0)
+    assert out.phase == mp.STOPPED and out.swim is False and out.reason == 'state lost'
+
+
+def test_state_back_before_the_delay_ends_runs():
+    runner = timed()
+    at(runner, 0.0)
+    delay = runner.mission.start_delay_s
+    runner.update(delay / 2.0)
+    assert at(runner, delay + 1.0).phase == mp.RUNNING
+
+
 @pytest.mark.parametrize('moment', ['waiting', 'running', 'surfacing'])
 def test_teleop_takes_over_at_any_moment(moment):
     runner = timed()

@@ -26,7 +26,7 @@ Project of the **Brazilian Team** for the *System Engineering* course 2026–202
 
 ## Team
 
-Pedro ALVES DE ARAUJO SILVA, Daniel FARLEI SILVA SOUZA, Matheus BENIGNO DA SILVA, Leticia LIE FURUTA, Pedro BARBOSA NORI and Luiz Felipe BARROS ALVES.
+Pedro ALVES DE ARAUJO SILVA, Daniel FARLEI SILVA SOUZA, Matheus BENIGNO DA SILVA, Leticia Lie FURUTA, Pedro BARBOSA NORI and Luiz Felipe BARROS ALVES.
 
 ## Contents
 
@@ -73,6 +73,10 @@ Pedro ALVES DE ARAUJO SILVA, Daniel FARLEI SILVA SOUZA, Matheus BENIGNO DA SILVA
 
 Built on the base design given in the course (tube, dome, rails and mounts), with the tail and the sliding-mass mechanism designed by the team in [Onshape](https://www.onshape.com/) and 3D printed.
 
+![The robot assembled with its tail, seen from the side](Docs/images/robot/robot_assembled.jpg)
+
+*The robot with its tail: dome and camera on the right, electronics in the tube, dorsal fin, and the tail servo and fin on the left.*
+
 <table>
   <tr>
     <td width="50%"><img src="Docs/images/robot/hull_side.jpg" alt="Side view of the hull"><br><sub>Side view: moving mass on the left, electronics and battery on the right, on two rails.</sub></td>
@@ -91,6 +95,10 @@ Built on the base design given in the course (tube, dome, rails and mounts), wit
 ![CAD of some of the parts designed by the team](Docs/images/robot/cad_parts.jpg)
 
 ![Main electronic components](Docs/images/robot/components.jpg)
+
+<img src="Docs/images/robot/radio_controller.jpg" alt="FrSky Taranis Q X7 radio controller" width="420">
+
+*FrSky Taranis Q X7 radio controller, for manual control of the robot. Its integration is still being tested: the software in this repository uses a keyboard teleop for now.*
 
 | Component | Role |
 | --- | --- |

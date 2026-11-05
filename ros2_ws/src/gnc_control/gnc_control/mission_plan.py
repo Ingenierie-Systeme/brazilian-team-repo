@@ -122,16 +122,17 @@ class MissionRunner:
     def update(self, now, north=None, west=None, depth=None, teleop=False):
         """One step at the time `now` [s]. north, west, depth: the current state, None if it is lost."""
         has_state = north is not None and west is not None and depth is not None
+        if self.phase == WAITING and has_state:
+            self.phase, self.delay_start = DELAY, now
+        if self.phase == DELAY and now - self.delay_start >= self.mission.start_delay_s:
+            self.phase, self.mission_start, self.step_start = RUNNING, now, now
+
+        # After the changes of phase above: the state can be lost at the moment the delay ends.
         if self.phase not in ENDED:
             if teleop:
                 self.phase, self.reason = OVERRIDDEN, 'taken by the teleop'
             elif self.phase in (RUNNING, SURFACING) and not has_state:
                 self.phase, self.reason = STOPPED, 'state lost'
-
-        if self.phase == WAITING and has_state:
-            self.phase, self.delay_start = DELAY, now
-        if self.phase == DELAY and now - self.delay_start >= self.mission.start_delay_s:
-            self.phase, self.mission_start, self.step_start = RUNNING, now, now
 
         if self.phase == RUNNING:
             step = self.mission.steps[self.index]
