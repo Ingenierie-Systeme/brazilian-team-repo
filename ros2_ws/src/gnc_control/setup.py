@@ -12,6 +12,7 @@ setup(
         ('share/ament_index/resource_index/packages', ['resource/' + package_name]),   # makes the package findable
         ('share/' + package_name, ['package.xml']),
         ('share/' + package_name + '/config', glob('config/*.yaml')),                  # parameters
+        ('share/' + package_name + '/config/missions', glob('config/missions/*.yaml')),  # missions
         ('share/' + package_name + '/launch', glob('launch/*.launch.py')),             # launch files
     ],
     install_requires=['setuptools'],
@@ -28,6 +29,8 @@ setup(
             'tail_oscillator = gnc_control.tail_oscillator_node:main',   # real robot: flapping → tail servo angle
             'depth_control = gnc_control.depth_control_node:main',       # depth control with the moving mass
             'depth_test = gnc_control.depth_test_node:main',             # scripted depth setpoints + CSV log
+            'mission = gnc_control.mission_node:main',                   # runs a mission from a file
+            'teleop = gnc_control.teleop_node:main',                     # keyboard, takes the robot at any moment
             'fusion = gnc_control.fusion_node:main',                     # orientation from the raw sensors
             'navigation = gnc_control.navigation_node:main',             # heading, depth and vertical speed
         ],
