@@ -122,6 +122,9 @@ class NavigatorNode(Node):
         self.max_amp = self.get_parameter('max_flap_amplitude').value
         self.max_rudder = self.get_parameter('max_rudder_angle').value
 
+        self.last_pwm_count = {}  # Cache last written PWM counts to minimize I2C bus traffic
+        self.ch5_armed = False    # True when RC switch CH5 == 1.0 (motors active, IMU paused)
+
         # 1. Initialize Navigator hardware ONCE
         self.init_navigator_hardware()
 
@@ -159,6 +162,7 @@ class NavigatorNode(Node):
             f'Navigator node ready!\n'
             f'  • RC Receiver: active on {self.active_rc_port}\n'
             f'  • Actuators: Ch{THRUST_CHANNEL} (Tail), Ch{MASS_CHANNEL} (Mass, limit [{MASS_MIN_NORM}, {MASS_MAX_NORM}])\n'
+            f'  • Switch CH5: Armed (=1.0) -> Motors Active & IMU paused | Disarmed (!=1.0) -> IMU Active\n'
             f'  • Telemetry: /input/rc (100 Hz), /imu/data ({IMU_RATE_HZ} Hz), /imu/mag ({MAG_RATE_HZ} Hz)'
         )
 
@@ -214,7 +218,13 @@ class NavigatorNode(Node):
         """Clamp pulse width to safe limits and command PCA9685 channel."""
         pulse_us = int(max(MIN_US, min(MAX_US, round(pulse_us))))
         count = int(round(pulse_us / PERIOD_US * STEPS))
-        navigator.set_pwm_channel_value(channel, count)
+        # Only write to I2C bus if value changed (reduces I2C congestion)
+        if self.last_pwm_count.get(channel) != count:
+            try:
+                navigator.set_pwm_channel_value(channel, count)
+                self.last_pwm_count[channel] = count
+            except Exception as e:
+                self.get_logger().warn_throttle(5.0, f'Error setting PWM Ch{channel}: {e}')
         return pulse_us
 
     def _calc_target_us(self, val):
@@ -264,6 +274,7 @@ class NavigatorNode(Node):
         # Failsafe: if RC signal drops for > 1.0s, return actuators to neutral
         if self.rc_active and (time.time() - self.last_rc_time > 1.0):
             self.rc_active = False
+            self.ch5_armed = False
             self.get_logger().warn('RC signal lost! Returning motors to neutral.')
             self.move_servo(THRUST_CHANNEL, ZERO_US)
             self.move_servo(MASS_CHANNEL, ZERO_US)
@@ -274,7 +285,7 @@ class NavigatorNode(Node):
           ch[0]: Rudder (horizontal stick) -> Tail bias offset
           ch[1]: Pitch  (vertical stick)   -> Internal sliding mass [-1.0, 0.3]
           ch[2]: Thrust (throttle stick)   -> Tail flapping amplitude
-          ch[4]: Arm    (aux switch)       -> Disarm safety (< 0 = disarmed)
+          ch[4]: Switch CH5                -> Armed when positive/1.0
         """
         if len(channels) < 3:
             return
@@ -282,12 +293,24 @@ class NavigatorNode(Node):
         rudder_stick = channels[0]
         pitch_stick  = channels[1]
         throttle     = channels[2]
-        is_armed     = channels[4] > -0.2 if len(channels) > 4 else True
 
-        if not is_armed:
-            # Disarmed: maintain neutral
-            self.move_servo(THRUST_CHANNEL, ZERO_US)
-            self.move_servo(MASS_CHANNEL, ZERO_US)
+        # Check Switch CH5 (Armed when ch5 == 1.0 / > 0.8)
+        # Checks index 4 (standard Channel 5) and index 5 (if 0-based)
+        ch5_val = channels[4] if len(channels) > 4 else -1.0
+        if ch5_val < 0.8 and len(channels) > 5 and channels[5] > 0.8:
+            ch5_val = channels[5]
+
+        was_armed = self.ch5_armed
+        self.ch5_armed = (ch5_val > 0.8)
+
+        # Mode Transition:
+        # If CH5 is NOT armed (ch5 != 1.0), the radio yields control to ROS topics (/cmd/thrust, /cmd/mass)
+        if not self.ch5_armed:
+            if was_armed:
+                # When pilot switches off manual RC, safely return actuators to neutral once
+                self.move_servo(THRUST_CHANNEL, ZERO_US)
+                self.move_servo(MASS_CHANNEL, ZERO_US)
+                self.get_logger().info('Manual RC disarmed (CH5 != 1.0). Motors now controlled by /cmd/thrust and /cmd/mass (Autonomous mode).')
             return
 
         # 1. Mass Control with physical travel limits [-1.0, 0.3]
@@ -312,23 +335,30 @@ class NavigatorNode(Node):
         target_tail_us = self._calc_target_us(tail_angle)
         self.move_servo(THRUST_CHANNEL, target_tail_us)
 
-    # ------------------ External Overrides (Fallback) ------------------
+    # ------------------ Autonomous / External Overrides ------------------
 
     def external_thrust_callback(self, msg):
-        # Only accept external commands if RC is not actively driving
-        if not self.rc_active:
-            target_us = self._calc_target_us(msg.data)
-            self.move_servo(THRUST_CHANNEL, target_us)
+        # Only accept external commands if manual RC pilot override is NOT active (CH5 != 1.0)
+        if self.ch5_armed:
+            return
+        target_us = self._calc_target_us(msg.data)
+        self.move_servo(THRUST_CHANNEL, target_us)
 
     def external_mass_callback(self, msg):
-        if not self.rc_active:
-            clamped_val = max(MASS_MIN_NORM, min(MASS_MAX_NORM, msg.data))
-            target_us = self._calc_target_us(clamped_val)
-            self.move_servo(MASS_CHANNEL, target_us)
+        # Only accept external commands if manual RC pilot override is NOT active (CH5 != 1.0)
+        if self.ch5_armed:
+            return
+        clamped_val = max(MASS_MIN_NORM, min(MASS_MAX_NORM, msg.data))
+        target_us = self._calc_target_us(clamped_val)
+        self.move_servo(MASS_CHANNEL, target_us)
 
     # ------------------ IMU & Magnetometer Sensing ------------------
 
     def imu_callback(self):
+        # Skip IMU read if Switch CH5 is armed (motors actively driven by RC)
+        if self.ch5_armed:
+            return
+
         try:
             accel = navigator.read_accel()
             gyro = navigator.read_gyro()
@@ -361,6 +391,10 @@ class NavigatorNode(Node):
         self.pub_imu.publish(msg)
 
     def mag_callback(self):
+        # Skip Magnetometer read if Switch CH5 is armed (prevents AK09915 I2C EREMOTEIO crash)
+        if self.ch5_armed:
+            return
+
         try:
             mag = navigator.read_mag()
         except Exception as e:
