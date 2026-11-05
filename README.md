@@ -10,10 +10,10 @@ Project of the **Brazilian Team** for the *System Engineering* course 2026–202
 
 <table>
   <tr>
-    <td width="42%"><img src="Docs/images/robot/hull_assembled.jpg" alt="The real robot during assembly: transparent tube with the electronics, moving mass and dorsal fin"></td>
+    <td width="42%"><img src="Docs/images/robot/robot_assembled.jpg" alt="The real robot fully assembled, seen from the side: transparent tube with the electronics, dorsal fin and tail"></td>
     <td>
-      <b>The real robot during assembly</b><br><br>
-      A transparent tube holds the computer, the battery and a sliding weight. A dorsal fin keeps it stable, and a tail fin, added at the back, makes it swim.<br><br>
+      <b>The real robot, fully assembled</b><br><br>
+      A transparent tube holds the computer, the battery and a sliding weight. A dorsal fin keeps it stable, and a tail fin at the back makes it swim.<br><br>
       <b>In short</b>
       <ul>
         <li><b>No propeller:</b> one servo flaps the tail fin to swim and steer.</li>
@@ -56,7 +56,7 @@ Pedro ALVES DE ARAUJO SILVA, Daniel FARLEI SILVA SOUZA, Matheus BENIGNO DA SILVA
 | Teleop that takes the robot at any moment | Done and tested in simulation |
 | Robot drivers (ROS 2) | Written, tested only on a fake board |
 | Electrical schematic and cost study | Done |
-| Real robot | In assembly; **no test in the water yet** |
+| Real robot | Assembled and ready; **no test in the water yet** |
 
 ## How the robot works
 
@@ -73,9 +73,9 @@ Pedro ALVES DE ARAUJO SILVA, Daniel FARLEI SILVA SOUZA, Matheus BENIGNO DA SILVA
 
 Built on the base design given in the course (tube, dome, rails and mounts), with the tail and the sliding-mass mechanism designed by the team in [Onshape](https://www.onshape.com/) and 3D printed.
 
-![The robot assembled with its tail, seen from the side](Docs/images/robot/robot_assembled.jpg)
+![The hull during the assembly, before the tail was added](Docs/images/robot/hull_assembled.jpg)
 
-*The robot with its tail: dome and camera on the right, electronics in the tube, dorsal fin, and the tail servo and fin on the left.*
+*The hull during the assembly, before the tail was added: transparent tube with the electronics, moving mass and dorsal fin.*
 
 <table>
   <tr>
