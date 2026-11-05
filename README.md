@@ -285,7 +285,7 @@ Tools/
 
 - The simulator is not calibrated yet: drag, water reaction on the tail and masses are estimates, listed in [RobotFish_Assumptions.md](Docs/RobotFish_Assumptions.md).
 - The drivers have only run on a fake board.
-- The simulation uses the moving mass of the target design (from the tube center to the front). The mechanism assembled today moves less, and the team expects to change it.
+- The simulation assumes a moving mass that slides from the tube center to the front. The real travel still has to be measured.
 
 **Next steps**
 

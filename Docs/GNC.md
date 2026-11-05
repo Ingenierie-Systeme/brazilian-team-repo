@@ -317,7 +317,7 @@ All are `std_msgs/Float64`.
 | `/servo/tail` | −1 … 1 | angle the tail servo must reach now, ±1 = ±500 µs around 1500 µs | not used | servo driver |
 | `/cmd/thrust`, `/cmd/rudder`, `/cmd/ballast` | see section 3 | keyboard-like shortcuts and test ballast | `RobotFishPhysics` | not used |
 
-Sign and range of `/cmd/pitch` on the robot still have to be checked (section 6.5): the simulation uses ±75 mm of travel (target design), and the real travel is not known yet.
+Sign and range of `/cmd/pitch` on the robot still have to be checked (section 6.5): the simulation uses ±75 mm of travel, and the real travel is not known yet.
 
 ### 6.2 Node `tail_oscillator`
 
@@ -678,7 +678,7 @@ The vertical speed is `v·sin(pitch)`, so the controller is a cascade:
 
 The gains come from steps of the moving mass in the simulation. The pitch follows the mass in 2 to 3.5 s, without oscillation, and the static balance predicts it within 0.2° (12.6° measured, 12.8° predicted for 15 mm).
 
-**Target robot.** The simulation uses the design the team expects to build: the weight toward the back of the tube and a moving mass between the tube center and the front. The mechanism assembled today moves less and is expected to change.
+**Robot in the simulation.** The weight is toward the back of the tube and the moving mass slides between the tube center and the front.
 
 ### 9.3 Results (simulation, closed loop through ROS 2)
 

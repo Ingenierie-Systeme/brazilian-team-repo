@@ -17,7 +17,7 @@ This document describes the robot (from its CAD model) and how the Unity simulat
 | Hull | acrylic tube Ø110/100 mm × 400 mm, closed by two caps |
 | Front | transparent dome (hemisphere Ø114 mm) with the camera |
 | Inside | two rails carrying the trays: Raspberry Pi 4 + Navigator board (IMU, magnetometer) on top, battery below |
-| Moving mass | **Target design, not the current mechanism:** a weight on the tube axis that slides from the tube center to the front, 50 mm from the end of the tube (150 mm of travel), with the rest of the weight toward the back of the tube. Its weight is adjustable; the simulation uses the weight that makes the robot neutral (713 g). The mechanism assembled today moves less and the team expects to change it, so the travel will have to be measured (see section 5.1) |
+| Moving mass | A weight on the tube axis that slides from the tube center to the front, 50 mm from the end of the tube (150 mm of travel), with the rest of the weight toward the back of the tube. Its weight is adjustable; the simulation uses the weight that makes the robot neutral (713 g). The real travel will have to be measured (see section 5.1) |
 | Tail drive | clamp around the rear cap, V-shaped support, Hitec D955TW servo in a waterproof housing, vertical axis 325 mm behind the tube center, arm to the fin |
 | Tail fin | vertical plate 160 × 120 mm (191.5 cm²), 5 mm thick |
 | Dorsal fin | fixed quarter disc R 75 mm (42 cm²) on top of the rear cap, stabilizer |
