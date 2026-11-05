@@ -317,7 +317,7 @@ ros2 run gnc_control teleop
 | User | `ubuntu` |
 | Password | `ubuntubr` |
 
-**Add your Wi-Fi network, once.** The robot and your computer must be on the same network, so a new user must add a network from a terminal on the robot. On the Raspberry Pi, edit the network file:
+**Add your Wi-Fi network, once.** The robot and your computer must be on the same network, so a new user must add a network from a terminal on the robot. Connect a monitor and a keyboard to the Raspberry Pi, log in and edit the network file:
 
 ```bash
 sudo nano /etc/netplan/50-cloud-init.yaml
