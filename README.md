@@ -10,10 +10,10 @@ Project of the **Brazilian Team** for the *System Engineering* course 2026–202
 
 <table>
   <tr>
-    <td width="42%"><img src="Docs/images/robot/hull_assembled.jpg" alt="The real robot during assembly: transparent tube with the electronics, moving mass and dorsal fin"></td>
+    <td width="42%"><img src="Docs/images/robot/robot_assembled.jpg" alt="The real robot fully assembled, seen from the side: transparent tube with the electronics, dorsal fin and tail"></td>
     <td>
-      <b>The real robot during assembly</b><br><br>
-      A transparent tube holds the computer, the battery and a sliding weight. A dorsal fin keeps it stable, and a tail fin, added at the back, makes it swim.<br><br>
+      <b>The real robot, fully assembled</b><br><br>
+      A transparent tube holds the computer, the battery and a sliding weight. A dorsal fin keeps it stable, and a tail fin at the back makes it swim.<br><br>
       <b>In short</b>
       <ul>
         <li><b>No propeller:</b> one servo flaps the tail fin to swim and steer.</li>
@@ -26,7 +26,7 @@ Project of the **Brazilian Team** for the *System Engineering* course 2026–202
 
 ## Team
 
-Pedro ALVES DE ARAUJO SILVA, Daniel FARLEI SILVA SOUZA, Matheus BENIGNO DA SILVA, Leticia LIE FURUTA, Pedro BARBOSA NORI and Luiz Felipe BARROS ALVES.
+Pedro ALVES DE ARAUJO SILVA, Daniel FARLEI SILVA SOUZA, Matheus BENIGNO DA SILVA, Leticia Lie FURUTA, Pedro BARBOSA NORI and Luiz Felipe BARROS ALVES.
 
 ## Contents
 
@@ -56,7 +56,7 @@ Pedro ALVES DE ARAUJO SILVA, Daniel FARLEI SILVA SOUZA, Matheus BENIGNO DA SILVA
 | Teleop that takes the robot at any moment | Done and tested in simulation |
 | Robot drivers (ROS 2) | Written, tested only on a fake board |
 | Electrical schematic and cost study | Done |
-| Real robot | In assembly; **no test in the water yet** |
+| Real robot | Assembled and ready; **no test in the water yet** |
 
 ## How the robot works
 
@@ -72,6 +72,10 @@ Pedro ALVES DE ARAUJO SILVA, Daniel FARLEI SILVA SOUZA, Matheus BENIGNO DA SILVA
 ## The physical robot
 
 Built on the base design given in the course (tube, dome, rails and mounts), with the tail and the sliding-mass mechanism designed by the team in [Onshape](https://www.onshape.com/) and 3D printed.
+
+![The hull during the assembly, before the tail was added](Docs/images/robot/hull_assembled.jpg)
+
+*The hull during the assembly, before the tail was added: transparent tube with the electronics, moving mass and dorsal fin.*
 
 <table>
   <tr>
@@ -91,6 +95,10 @@ Built on the base design given in the course (tube, dome, rails and mounts), wit
 ![CAD of some of the parts designed by the team](Docs/images/robot/cad_parts.jpg)
 
 ![Main electronic components](Docs/images/robot/components.jpg)
+
+<img src="Docs/images/robot/radio_controller.jpg" alt="FrSky Taranis Q X7 radio controller" width="420">
+
+*FrSky Taranis Q X7 radio controller, for manual control of the robot. Its integration is still being tested: the software in this repository uses a keyboard teleop for now.*
 
 | Component | Role |
 | --- | --- |
@@ -277,7 +285,7 @@ Tools/
 
 - The simulator is not calibrated yet: drag, water reaction on the tail and masses are estimates, listed in [RobotFish_Assumptions.md](Docs/RobotFish_Assumptions.md).
 - The drivers have only run on a fake board.
-- The simulation uses the moving mass of the target design (from the tube center to the front). The mechanism assembled today moves less, and the team expects to change it.
+- The simulation assumes a moving mass that slides from the tube center to the front. The real travel still has to be measured.
 
 **Next steps**
 
