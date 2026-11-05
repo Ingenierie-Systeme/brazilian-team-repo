@@ -396,7 +396,8 @@ class NavigatorNode(Node):
             return
 
         try:
-            mag = navigator.read_mag()
+            #mag = navigator.read_mag()
+            pass
         except Exception as e:
             self.get_logger().warn_throttle(5.0, f'Error reading Magnetometer: {e}')
             return
@@ -407,9 +408,9 @@ class NavigatorNode(Node):
         msg.header.frame_id = 'imu_link'
 
         # Convert microTesla (µT) to Tesla (T)
-        msg.magnetic_field.x = float(mag.x * 1e-6)
-        msg.magnetic_field.y = float(mag.y * 1e-6)
-        msg.magnetic_field.z = float(mag.z * 1e-6)
+        msg.magnetic_field.x = float(0* 1e-6)
+        msg.magnetic_field.y = float(0 * 1e-6)
+        msg.magnetic_field.z = float(0 * 1e-6)
         msg.magnetic_field_covariance[0] = 1e-12
         msg.magnetic_field_covariance[4] = 1e-12
         msg.magnetic_field_covariance[8] = 1e-12
