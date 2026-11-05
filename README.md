@@ -26,7 +26,7 @@ Project of the **Brazilian Team** for the *System Engineering* course 2026–202
 
 ## Team
 
-Pedro ALVES DE ARAUJO SILVA, Daniel FARLEI SILVA SOUZA, Matheus BENIGNO DA SILVA, Leticia Lie FURUTA, Pedro BARBOSA NORI and Luiz Felipe BARROS ALVES.
+Pedro ALVES DE ARAUJO SILVA, Daniel FARLEI SILVA SOUZA, Matheus BENIGNO DA SILVA, Leticia Lie FURUTA, Pedro BARBOSA NORI and Luiz Felipe BARROS ALVES. Students of the *System Engineering* course at ENSTA, 2026–2027.
 
 ## Contents
 
@@ -37,8 +37,10 @@ Pedro ALVES DE ARAUJO SILVA, Daniel FARLEI SILVA SOUZA, Matheus BENIGNO DA SILVA
 - [Project cost](#project-cost)
 - [The simulator](#the-simulator)
 - [The software](#the-software)
+- [From simulation to reality](#from-simulation-to-reality)
 - [Results so far](#results-so-far)
 - [Try it](#try-it)
+- [Run the real robot](#run-the-real-robot)
 - [Repository layout](#repository-layout)
 - [Documentation](#documentation)
 - [Limitations and next steps](#limitations-and-next-steps)
@@ -72,6 +74,17 @@ Pedro ALVES DE ARAUJO SILVA, Daniel FARLEI SILVA SOUZA, Matheus BENIGNO DA SILVA
 ## The physical robot
 
 Built on the base design given in the course (tube, dome, rails and mounts), with the tail and the sliding-mass mechanism designed by the team in [Onshape](https://www.onshape.com/) and 3D printed.
+
+### Mechanical architecture
+
+![Mechanical architecture of the robot, side view](Docs/images/mechanical_architecture.png)
+
+- **Watertight hull:** the acrylic tube and its dome hold the camera, the computer, the battery and the moving mass, on two rails.
+- **Depth:** a servo inside the tube slides the metal weights along the tube, which tilts the robot.
+- **Propulsion and steering:** a clamp on the rear cap and a V-shaped support hold the waterproof tail servo outside the tube. An arm links this servo to the tail fin.
+- **Stability:** the fixed dorsal fin resists sideways motion, and the center of mass below the center of buoyancy returns the robot to level.
+
+### Photos
 
 ![The hull during the assembly, before the tail was added](Docs/images/robot/hull_assembled.jpg)
 
@@ -131,12 +144,7 @@ Estimated total: **about €9,440**, of which about 87 % is labor. The detail, s
 | Contingency | 10 % of the labor | €750 |
 | **Total** | | **€9,438** |
 
-| Largest hardware items | Cost |
-| --- | --- |
-| Watertight enclosure | €376 |
-| Navigator board | €196 |
-| Underwater servo kit | €165 |
-| Hitec D-955TW servo | €104 |
+![Share of each category in the total cost, and cost of each hardware item](Docs/images/project_cost.png)
 
 **Proposed new components, not included in the total:** GNSS receiver (€49) and Ping sonar altimeter (€383).
 
@@ -166,6 +174,42 @@ The simulator recreates the ENSTA Air-Sea Test Basin (20 × 12 × 6 m) in **Unit
 
 **About the videos:** the motion of the hull caused by the tail strokes is filtered on the screen, from ±6.4° of yaw in the physics to about ±1° displayed. This only changes the display: sensors, physics and control use the true values. The real motion will be known after the tests in the water. See [RobotFish_Model.md](Docs/RobotFish_Model.md#51-tail-flapping).
 
+### 3D dynamics model
+
+![Forces and moments on the robot, side and top views](Docs/images/dynamics_model.png)
+
+Unity integrates the motion of one rigid body from the sum of the forces and moments below, computed in `RobotFishPhysics.cs` at each physics step:
+
+$$M\dot{\mathbf{v}} = M\mathbf{g} + \mathbf{B} + \mathbf{F}_{\text{hull}} + \mathbf{F}_{\text{dorsal}} + \mathbf{F}_{\text{tail}}, \qquad I\dot{\boldsymbol{\omega}} \approx \sum_i \mathbf{r}_i \times \mathbf{F}_i - c_\omega\boldsymbol{\omega}$$
+
+The total mass $M$, the center of mass and the inertia $I$ are recomputed at each step, because the moving mass $m$ changes them.
+
+**Buoyancy,** summed over points that fill the displaced volume (1 cm grid), counting only the points under water:
+
+$$\mathbf{B} = \sum_i \rho g V_i \, \mathbf{e}_z$$
+
+**Hull drag,** along the hull ($C_x = 0.6$ on the frontal area) and across it ($C_c = 1.1$ on each of 12 slices):
+
+$$D_x = -\tfrac{1}{2}\rho C_x A_f \lvert v_x \rvert v_x, \qquad \mathbf{F}_{c,i} = -\tfrac{1}{2}\rho C_c A_i \lVert \mathbf{v}_{\perp,i} \rVert \mathbf{v}_{\perp,i}$$
+
+**Dorsal fin,** a flat plate of normal $\mathbf{n}$ and area $A$, at an angle of attack $\alpha$:
+
+$$\mathbf{F}_{\text{dorsal}} = -\mathbf{n}\, \tfrac{1}{2}\rho A \lVert\mathbf{v}\rVert^2 C_N(\alpha)$$
+
+**Tail fin.** The servo follows $\theta_f = \text{bias} + A\sin\phi$, with $\dot\phi = 2\pi f$, limited by its speed and torque. The fin is cut into elements, each moving across the water at a normal speed $w$. Following Lighthill's elongated-body theory, the water it pushes acts as an added mass per unit chord $m' = C\rho\pi s^2/4$, where $s$ is the height of the fin and $C = 0.7$. Three forces result, with $\mathbf{n}$ across the fin and $\boldsymbol{\tau}$ along it, toward the trailing edge:
+
+$$\mathbf{F}_{\text{reactive}} = -m'\Delta r\,(r\ddot\theta_f\,\mathbf{n} - w\dot\theta_f\,\boldsymbol{\tau}) \qquad \text{each element at a distance } r \text{ from the servo axis}$$
+
+$$\mathbf{F}_{\text{edge}} = m'\left(w_e u_e\,\mathbf{n} - \tfrac{1}{2}w_e^2\,\boldsymbol{\tau}\right) \qquad \text{trailing edge, which gives the thrust}$$
+
+$$\mathbf{F}_{\text{resistive}} = -\tfrac{1}{2}\rho C_D a\,\lvert w\rvert w\,\mathbf{n} \qquad \text{each element of area } a,\ C_D = 1.2$$
+
+**What this means for depth.** With a vertical distance $d$ between the center of buoyancy and the center of mass, a displacement $\Delta x$ of the moving mass tilts the robot at rest by $\theta$, and the robot then changes depth while it swims at a speed $v$:
+
+$$\tan\theta = \frac{m\,\Delta x}{M\,d}, \qquad v_z \approx v\sin\theta$$
+
+The coefficients come from the literature and the rotational damping ($c_\omega = 0.3$ N·m·s) was tuned in the simulation: none has been measured on the robot yet. [RobotFish_Model.md](Docs/RobotFish_Model.md) has the complete model and its tests.
+
 ## The software
 
 Everything runs as ROS 2 nodes written in Python. The architecture follows the classic split of **navigation** (where am I?), **guidance** (where should I go?) and **control** (how do I get there?), based on the `navigator` package given in the course.
@@ -179,6 +223,18 @@ Everything runs as ROS 2 nodes written in Python. The architecture follows the c
 | --- | --- |
 | [`gnc_control`](ros2_ws/src/gnc_control) | `fusion`, `navigation` (orientation, depth and position), `heading_control`, `depth_control`, `tail_oscillator`, `mission`, `teleop` |
 | [`auv_hardware`](ros2_ws/src/auv_hardware) | `navigator`, `barometer`, launch file and parameters of the robot |
+
+## From simulation to reality
+
+The idea is to develop and test the software in the simulator, then run **the same navigation, guidance and control nodes** on the robot. The nodes only see ROS 2 topics, with the same names and values in both cases, so only the layer that reads the sensors and moves the servos changes.
+
+![The same ROS 2 code connected to the simulation or to the real robot](Docs/images/simulation_to_reality.png)
+
+- **Commands** are normalized (for example, `/cmd/tail_frequency` goes from 0 to 1), so the controllers do not depend on the size of the actuators.
+- **The tail:** Unity computes the flapping by itself. The real servo only accepts the angle to reach at each instant, so `tail_oscillator` computes this angle on the robot.
+- **What has to be measured:** the sensor calibration, the speed table, the masses and the travel of the moving mass come from the simulation or from estimates, and must be measured on the robot.
+
+**Status:** the nodes of the real robot in this repository have only run on a fake board. The first tests on the physical robot use separate test code, kept in the branch `feature/hardware-ros-nodes`. Both codes still have to be combined.
 
 ## Results so far
 
@@ -247,7 +303,57 @@ cd <path to>/brazilian-team-repo/ros2_ws && source install/setup.bash
 ros2 run gnc_control teleop
 ```
 
-To run the code on the real robot, follow [Robot_Setup.md](Docs/Robot_Setup.md).
+[GNC.md](Docs/GNC.md#106-running-it) has the detailed commands.
+
+## Run the real robot
+
+**These commands have not run on the physical robot yet:** they will be confirmed when the codes are combined (see [From simulation to reality](#from-simulation-to-reality)). Before the first run, follow the installation, checks and calibration of [Robot_Setup.md](Docs/Robot_Setup.md), and tie a rope to the robot before any test in the water.
+
+**Connect to the Raspberry Pi:**
+
+| Access | Value |
+| --- | --- |
+| Address of the robot | *to be added* |
+| User | *to be added* |
+| Password | *to be added* |
+
+```bash
+ssh <user>@<address of the robot>
+```
+
+Start the robot at the surface, because this pressure is the zero of the depth. Each terminal is a new SSH connection. Run terminal 1 in `tmux` or `screen`, so that it keeps running if the connection is lost.
+
+**Autonomous: a mission.** Terminal 1 (the tail starts flapping after the delay of the mission file):
+
+```bash
+source /opt/ros/jazzy/setup.bash
+cd <path to>/brazilian-team-repo/ros2_ws && source install/setup.bash
+ros2 launch auv_hardware robot.launch.py swim:=true mission:=timed.yaml
+```
+
+Terminal 2, to take the robot with the keyboard at any moment (X stops everything, R releases it; the mission does not resume):
+
+```bash
+source /opt/ros/jazzy/setup.bash
+cd <path to>/brazilian-team-repo/ros2_ws && source install/setup.bash
+ros2 run gnc_control teleop
+```
+
+**Manual: keyboard only.** Terminal 1 starts the sensors and the servos, with the tail stopped:
+
+```bash
+source /opt/ros/jazzy/setup.bash
+cd <path to>/brazilian-team-repo/ros2_ws && source install/setup.bash
+ros2 launch auv_hardware robot.launch.py
+```
+
+Terminal 2 (Space swims, A/D turn, W/S move the mass, X stops):
+
+```bash
+source /opt/ros/jazzy/setup.bash
+cd <path to>/brazilian-team-repo/ros2_ws && source install/setup.bash
+ros2 run gnc_control teleop
+```
 
 ## Repository layout
 
