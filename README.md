@@ -309,16 +309,42 @@ ros2 run gnc_control teleop
 
 **These commands have not run on the physical robot yet:** they will be confirmed when the codes are combined (see [From simulation to reality](#from-simulation-to-reality)). Before the first run, follow the installation, checks and calibration of [Robot_Setup.md](Docs/Robot_Setup.md), and tie a rope to the robot before any test in the water.
 
-**Connect to the Raspberry Pi:**
+**Access to the Raspberry Pi:**
 
 | Access | Value |
 | --- | --- |
-| Address of the robot | *to be added* |
-| User | *to be added* |
-| Password | *to be added* |
+| Name on the network | `brazillian.local` |
+| User | `ubuntu` |
+| Password | `ubuntubr` |
+
+**Add your Wi-Fi network, once.** The robot and your computer must be on the same network, so a new user must add a network from a terminal on the robot. On the Raspberry Pi, edit the network file:
 
 ```bash
-ssh <user>@<address of the robot>
+sudo nano /etc/netplan/50-cloud-init.yaml
+```
+
+Add your network under `access-points`, keeping the networks already there:
+
+```yaml
+wifis:
+  wlan0:
+    optional: true
+    access-points:
+      "<name of your network>":
+        password: "<password of your network>"
+    dhcp4: true
+```
+
+Then apply it:
+
+```bash
+sudo netplan apply
+```
+
+**Connect from your computer,** once both are on the same network:
+
+```bash
+ssh ubuntu@brazillian.local
 ```
 
 Start the robot at the surface, because this pressure is the zero of the depth. Each terminal is a new SSH connection. Run terminal 1 in `tmux` or `screen`, so that it keeps running if the connection is lost.
