@@ -1,4 +1,4 @@
-using UnityEngine;                                    // core Unity API
+using UnityEngine;
 
 // Moves the visual parts of the detailed robot fish (RobotFishDetailed prefab) from the state of RobotFishPhysics:
 //   - moving mass: a small square carriage with a metal weight on top (like on the real robot), on the tube axis,

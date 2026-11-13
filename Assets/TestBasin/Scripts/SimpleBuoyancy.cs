@@ -1,22 +1,22 @@
-using UnityEngine;                                    // core Unity API
+using UnityEngine;
 
 // Archimedes buoyancy and simple hydrodynamic drag for a body inside the basin's WaterVolume.
 // Buoyancy = density × volume × g × submerged fraction (fraction estimated from the position relative to the surface).
-[RequireComponent(typeof(Rigidbody))]                 // buoyancy needs a Rigidbody
+[RequireComponent(typeof(Rigidbody))]
 public class SimpleBuoyancy : MonoBehaviour
 {
-    [Header("Water")]                                 // Inspector section title
+    [Header("Water")]
     public TestBasin basin;                           // basin providing the surface height (empty = search the scene)
     public float waterDensity = 1000f;                // water density [kg/m³]
 
-    [Header("Body")]                                  // Inspector section title
+    [Header("Body")]
     public float volume = 0.0293f;                    // robot volume [m³] (see "Estimate volume from collider")
 
-    [Header("Drag inside the water")]                 // Inspector section title
+    [Header("Drag inside the water")]
     public float linearDrag = 2f;                     // linear damping in water (Rigidbody.linearDamping)
     public float angularDrag = 1f;                    // angular damping in water (Rigidbody.angularDamping)
 
-    [Header("Debug (read-only)")]                     // Inspector section title
+    [Header("Debug (read-only)")]
     public bool inWater;                              // inside the WaterVolume?
     [Range(0f, 1f)] public float submergedFraction;   // current submerged fraction (0 to 1)
     public float buoyancyForce;                       // buoyancy applied at the last step [N]
@@ -29,29 +29,29 @@ public class SimpleBuoyancy : MonoBehaviour
     // Stores references and the original damping values
     void Awake()
     {
-        rb = GetComponent<Rigidbody>();               // required Rigidbody
-        bodyCollider = GetComponentInChildren<Collider>(); // collider on this object or on a child
-        airLinearDamping = rb.linearDamping;          // save the "air" linear damping
-        airAngularDamping = rb.angularDamping;        // save the "air" angular damping
+        rb = GetComponent<Rigidbody>();
+        bodyCollider = GetComponentInChildren<Collider>();
+        airLinearDamping = rb.linearDamping;
+        airAngularDamping = rb.angularDamping;
     }
 
     // Finds the basin if it was not set in the Inspector
     void Start()
     {
-        if (basin == null) basin = FindAnyObjectByType<TestBasin>();          // look for a basin in the scene
-        if (basin == null) Debug.LogWarning("SimpleBuoyancy: no TestBasin in the scene", this); // warn if none was found
+        if (basin == null) basin = FindAnyObjectByType<TestBasin>();
+        if (basin == null) Debug.LogWarning("SimpleBuoyancy: no TestBasin in the scene", this);
     }
 
     // Entered a trigger: check whether it is the water volume
     void OnTriggerEnter(Collider other)
     {
-        if (IsWater(other)) SetInWater(true);         // entered the water
+        if (IsWater(other)) SetInWater(true);
     }
 
     // Left a trigger: check whether it is the water volume
     void OnTriggerExit(Collider other)
     {
-        if (IsWater(other)) SetInWater(false);        // left the water
+        if (IsWater(other)) SetInWater(false);
     }
 
     // Tells whether a collider is the basin's WaterVolume
@@ -63,69 +63,69 @@ public class SimpleBuoyancy : MonoBehaviour
     // Switches the damping values when entering/leaving the water
     void SetInWater(bool value)
     {
-        inWater = value;                                                  // update the state
-        rb.linearDamping = value ? linearDrag : airLinearDamping;         // water or air linear damping
-        rb.angularDamping = value ? angularDrag : airAngularDamping;      // water or air angular damping
+        inWater = value;
+        rb.linearDamping = value ? linearDrag : airLinearDamping;
+        rb.angularDamping = value ? angularDrag : airAngularDamping;
     }
 
     // Computes and applies the buoyancy at every physics step
     void FixedUpdate()
     {
-        buoyancyForce = 0f;                                               // reset the debug value
-        submergedFraction = 0f;                                           // reset the debug fraction
-        if (!inWater || basin == null || bodyCollider == null) return;    // out of the water: nothing to do
+        buoyancyForce = 0f;
+        submergedFraction = 0f;
+        if (!inWater || basin == null || bodyCollider == null) return;
 
-        float surfaceY = basin.WaterSurfaceY;                             // surface height read from the basin
-        Bounds b = bodyCollider.bounds;                                   // box enclosing the body (world space)
+        float surfaceY = basin.WaterSurfaceY;
+        Bounds b = bodyCollider.bounds;
         float height = Mathf.Max(b.size.y, 1e-4f);                        // body height (avoids division by zero)
         submergedFraction = Mathf.Clamp01((surfaceY - b.min.y) / height); // part of the body below the surface
-        if (submergedFraction <= 0f) return;                              // fully out of the water
+        if (submergedFraction <= 0f) return;
 
-        float g = -Physics.gravity.y;                                     // gravity (positive) [m/s²]
+        float g = -Physics.gravity.y;
         buoyancyForce = waterDensity * volume * g * submergedFraction;    // Archimedes: ρ · V · g · fraction
 
-        float topWet = Mathf.Min(surfaceY, b.max.y);                      // top of the wet part
+        float topWet = Mathf.Min(surfaceY, b.max.y);
         Vector3 center = new Vector3(b.center.x, (b.min.y + topWet) / 2f, b.center.z); // approximate center of the submerged part
-        rb.AddForceAtPosition(Vector3.up * buoyancyForce, center, ForceMode.Force);    // apply the buoyancy at that point
+        rb.AddForceAtPosition(Vector3.up * buoyancyForce, center, ForceMode.Force);
     }
 
     // Restores the damping values if the component is disabled inside the water
     void OnDisable()
     {
-        if (rb != null && inWater) SetInWater(false);                     // back to the air values
+        if (rb != null && inWater) SetInWater(false);
     }
 
     // Estimates the volume from the object's collider (capsule, box or sphere)
-    [ContextMenu("Estimate volume from collider")]                        // item in the component's ⋮ menu
+    [ContextMenu("Estimate volume from collider")]
     public void EstimateVolumeFromCollider()
     {
-        Collider c = GetComponentInChildren<Collider>();                  // body collider
-        Vector3 s = c != null ? c.transform.lossyScale : Vector3.one;     // collider world scale
-        if (c is CapsuleCollider cap)                                     // capsule
+        Collider c = GetComponentInChildren<Collider>();
+        Vector3 s = c != null ? c.transform.lossyScale : Vector3.one;
+        if (c is CapsuleCollider cap)
         {
-            float[] axes = { Mathf.Abs(s.x), Mathf.Abs(s.y), Mathf.Abs(s.z) };             // scale of each axis
-            float axisScale = axes[cap.direction];                                          // scale along the capsule axis
-            float radiusScale = Mathf.Max(axes[(cap.direction + 1) % 3], axes[(cap.direction + 2) % 3]); // radius scale
-            float r = cap.radius * radiusScale;                                             // world radius
-            float h = Mathf.Max(cap.height * axisScale, 2f * r);                            // world total height
+            float[] axes = { Mathf.Abs(s.x), Mathf.Abs(s.y), Mathf.Abs(s.z) };
+            float axisScale = axes[cap.direction];
+            float radiusScale = Mathf.Max(axes[(cap.direction + 1) % 3], axes[(cap.direction + 2) % 3]);
+            float r = cap.radius * radiusScale;
+            float h = Mathf.Max(cap.height * axisScale, 2f * r);
             volume = Mathf.PI * r * r * (h - 2f * r) + 4f / 3f * Mathf.PI * r * r * r;     // cylinder + two half-spheres
         }
-        else if (c is BoxCollider box)                                    // box
+        else if (c is BoxCollider box)
         {
-            Vector3 size = Vector3.Scale(box.size, s);                    // world size
-            volume = Mathf.Abs(size.x * size.y * size.z);                 // width × height × length
+            Vector3 size = Vector3.Scale(box.size, s);
+            volume = Mathf.Abs(size.x * size.y * size.z);
         }
-        else if (c is SphereCollider sph)                                 // sphere
+        else if (c is SphereCollider sph)
         {
-            float r = sph.radius * Mathf.Max(Mathf.Abs(s.x), Mathf.Abs(s.y), Mathf.Abs(s.z)); // world radius
-            volume = 4f / 3f * Mathf.PI * r * r * r;                      // sphere volume
+            float r = sph.radius * Mathf.Max(Mathf.Abs(s.x), Mathf.Abs(s.y), Mathf.Abs(s.z));
+            volume = 4f / 3f * Mathf.PI * r * r * r;
         }
-        else Debug.LogWarning("SimpleBuoyancy: collider type not supported for volume estimation", this); // other types
+        else Debug.LogWarning("SimpleBuoyancy: collider type not supported for volume estimation", this);
     }
 
     // Fills in the volume automatically when the component is added
     void Reset()
     {
-        EstimateVolumeFromCollider();                                     // initial estimate from the collider
+        EstimateVolumeFromCollider();
     }
 }

@@ -263,7 +263,7 @@ The next two paragraphs describe the tests made before this adjustment.
 
 ### 5.2 Mass, buoyancy, moving mass (SimpleThrust model)
 
-Scripted tests in `Basin_Grid` with `RobotFishDetailed`, commands published by a ROS 2 node at 20 Hz, made with the `SimpleThrust` model (fixed rudder + forward force) and the **previous mass estimate** (structure 2.43 kg from the CAD only). The robot now weighs 4.0 kg with a 714 g moving mass: the neutral case below has the same total mass and buoyancy, the moving mass simply rests further forward and needs about 3 times more travel for the same tilt.
+Scripted tests in `Basin_Grid` with `RobotFishDetailed`, commands published by a ROS 2 node at 20 Hz, made with the `SimpleThrust` model (fixed rudder + forward force) and the **previous mass estimate** (structure 2.43 kg from the CAD only). The robot now weighs 4.0 kg with a 713 g moving mass: the neutral case below has the same total mass and buoyancy, the moving mass simply rests further forward and needs about 3 times more travel for the same tilt.
 
 **Moving mass 100 g (previous estimate), no command:**
 

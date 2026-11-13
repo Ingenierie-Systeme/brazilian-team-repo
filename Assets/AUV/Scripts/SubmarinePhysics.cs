@@ -1,6 +1,10 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 
+// First AUV model of the project (propeller thrust, rudder torque, sliding mass and ballast), before the robot fish.
+// It is only used in Assets/AUV/Scenes/Submarine_model.unity; the basin scenes use RobotFishPhysics.
+// Buoyancy is computed per hull vertex below the water level; the commands come from the keyboard or, with
+// externalControl on, from another component such as ActuatorCommandSubscriber.
 public class SubmarinePhysics : MonoBehaviour
 {
     [Header("Orientation")]
