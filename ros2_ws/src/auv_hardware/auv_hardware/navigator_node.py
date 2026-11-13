@@ -43,8 +43,7 @@ class NavigatorNode(Node):
         tail_channel = p('tail_channel', 0).value                        # PWM output of the tail servo
         mass_channel = p('mass_channel', 1).value                        # PWM output of the moving-mass servo
         mass_invert = p('mass_invert', False).value                      # moving mass going the other way
-        mass_low = p('mass_servo_min', -1.0).value                       # moving-mass servo limits, in servo units
-        mass_high = p('mass_servo_max', 1.0).value                       # (−1 = 1000 µs, 1 = 2000 µs)
+        mass_limit = p('mass_limit', 1.0).value                          # largest command of the moving mass
 
         # ---- board: the servos are centered before the outputs are enabled
         navigator.set_rgb_led_strip_size(1)
@@ -54,7 +53,7 @@ class NavigatorNode(Node):
         navigator.set_pwm_freq_hz(int(PWM_FREQUENCY_HZ))
         self.tail = ServoChannel(lambda duty: navigator.set_pwm_channel_duty_cycle(tail_channel, duty), timeout)
         self.mass = ServoChannel(lambda duty: navigator.set_pwm_channel_duty_cycle(mass_channel, duty), timeout,
-                                 invert=mass_invert, low=mass_low, high=mass_high)
+                                 invert=mass_invert, limit=mass_limit)
         self.tail.center()
         self.mass.center()
         navigator.set_pwm_enable(True)

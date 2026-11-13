@@ -66,7 +66,7 @@ ros2 topic pub -r 10 /cmd/pitch std_msgs/msg/Float64 "{data: 0.2}"     # moving-
 | 1 | The tail servo moves with `/servo/tail`, the mass with `/cmd/pitch` | Swap the channels | `tail_channel`, `mass_channel` |
 | 2 | Each servo returns to the center 0.5 s after Ctrl+C | Stop and check the driver | – |
 | 3 | A positive `/cmd/pitch` moves the mass forward | Reverse it | `mass_invert` |
-| 4 | The mass does not hit anything between the two limits (increase slowly). The first tests on the robot limited the servo to −1 … 0.3 | Change the limits, and note the real travel | `mass_servo_min`, `mass_servo_max` |
+| 4 | The mass does not hit anything at ±1 (increase slowly) | Limit it, and note the real travel | `mass_limit` |
 | 5 | A positive `/servo/tail` moves the fin to the right, seen from above with the nose forward | Reverse it | `invert` of `tail_oscillator` |
 | 6 | Measure the fin angle at `/servo/tail` = 1 (increase slowly) | – | `servo_range_deg` |
 
