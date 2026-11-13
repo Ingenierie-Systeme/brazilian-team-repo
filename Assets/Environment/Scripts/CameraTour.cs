@@ -1,6 +1,6 @@
-using System.Collections.Generic;                     // List
-using UnityEngine;                                    // core Unity API
-using UnityEngine.InputSystem;                        // keyboard (new Input System)
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.InputSystem;
 
 // Presentation flight of the camera through the campus scene: a smooth path through a list of waypoints
 // (Catmull-Rom spline for the position, interpolated look target), from the parking lot into the building and

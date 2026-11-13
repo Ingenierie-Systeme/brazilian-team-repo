@@ -1,9 +1,9 @@
-using System.Collections.Generic;                     // Dictionary
-using System.IO;                                      // File
-using System.Linq;                                    // OfType
-using UnityEditor;                                    // editor API
-using UnityEditor.SceneManagement;                    // scenes
-using UnityEngine;                                    // core API
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using UnityEditor;
+using UnityEditor.SceneManagement;
+using UnityEngine;
 
 // Builds Assets/AUV/Prefabs/RobotFishDetailed.prefab from the CAD meshes converted by
 // Tools/cad_analysis/cad_to_unity.py (Assets/AUV/Models/RobotFish: one OBJ per part + robot_fish_parts.json).

@@ -1,6 +1,6 @@
-using UnityEngine;                                    // core Unity API
-using Unity.Robotics.ROSTCPConnector;                 // ROSConnection
-using RosMessageTypes.Std;                            // Float64Msg
+using UnityEngine;
+using Unity.Robotics.ROSTCPConnector;
+using RosMessageTypes.Std;
 
 // Receives the actuator commands of the robot fish from ROS 2 and hands them to RobotFishPhysics.
 //
@@ -24,10 +24,10 @@ using RosMessageTypes.Std;                            // Float64Msg
 [DefaultExecutionOrder(-50)]                          // runs before RobotFishPhysics (order 0) in every physics step
 public class ActuatorCommandSubscriber : MonoBehaviour
 {
-    [Header("Target")]                                // Inspector section title
+    [Header("Target")]
     public RobotFishPhysics robot;                // robot to command (empty = search on this object or its parents)
 
-    [Header("ROS 2")]                                 // Inspector section title
+    [Header("ROS 2")]
     public string thrustTopic = "cmd/thrust";         // std_msgs/Float64, [-1, 1]
     public string rudderTopic = "cmd/rudder";         // std_msgs/Float64, [-1, 1]
     public string pitchTopic = "cmd/pitch";           // std_msgs/Float64, [-1, 1]
@@ -36,11 +36,11 @@ public class ActuatorCommandSubscriber : MonoBehaviour
     public string tailAmplitudeTopic = "cmd/tail_amplitude";   // std_msgs/Float64, [0, 1]
     public string tailBiasTopic = "cmd/tail_bias";             // std_msgs/Float64, [-1, 1]
 
-    [Header("Safety")]                                // Inspector section title
+    [Header("Safety")]
     [Tooltip("Time without any command after which the actuators go to the safe state and the keyboard takes over [s].")]
     public float commandTimeout = 0.5f;
 
-    [Header("Debug (read-only)")]                     // Inspector section title
+    [Header("Debug (read-only)")]
     public bool rosInControl;                         // commands are arriving from ROS
     public float lastThrust;                          // last value received on each topic
     public float lastRudder;
@@ -56,24 +56,24 @@ public class ActuatorCommandSubscriber : MonoBehaviour
     // Finds the AUV and subscribes to the topics
     void Start()
     {
-        if (robot == null) robot = GetComponentInParent<RobotFishPhysics>();   // usually on the robot root
+        if (robot == null) robot = GetComponentInParent<RobotFishPhysics>();
         if (robot == null) { Debug.LogError("ActuatorCommandSubscriber: no RobotFishPhysics found", this); enabled = false; return; }
 
-        ROSConnection ros = ROSConnection.GetOrCreateInstance();                       // shared ROS connection
+        ROSConnection ros = ROSConnection.GetOrCreateInstance();
         ros.Subscribe<Float64Msg>(thrustTopic, msg => lastThrust = Receive(msg));       // each callback stores the
         ros.Subscribe<Float64Msg>(rudderTopic, msg => lastRudder = Receive(msg));       // clamped value and refreshes
         ros.Subscribe<Float64Msg>(pitchTopic, msg => lastPitch = Receive(msg));         // the watchdog
         ros.Subscribe<Float64Msg>(ballastTopic, msg => lastBallast = Receive(msg));
-        ros.Subscribe<Float64Msg>(tailFrequencyTopic, msg => lastTailFrequency = Mathf.Max(0f, Receive(msg)));   // [0, 1]
-        ros.Subscribe<Float64Msg>(tailAmplitudeTopic, msg => lastTailAmplitude = Mathf.Max(0f, Receive(msg)));   // [0, 1]
+        ros.Subscribe<Float64Msg>(tailFrequencyTopic, msg => lastTailFrequency = Mathf.Max(0f, Receive(msg)));
+        ros.Subscribe<Float64Msg>(tailAmplitudeTopic, msg => lastTailAmplitude = Mathf.Max(0f, Receive(msg)));
         ros.Subscribe<Float64Msg>(tailBiasTopic, msg => lastTailBias = Receive(msg));
     }
 
     // Common part of the callbacks (they run on the Unity main thread)
     float Receive(Float64Msg msg)
     {
-        lastCommandTime = Time.time;                                                   // feeds the watchdog
-        commandsReceived++;                                                            // count
+        lastCommandTime = Time.time;
+        commandsReceived++;
         float value = (float)msg.data;                                                 // double → float
         return float.IsNaN(value) ? 0f : Mathf.Clamp(value, -1f, 1f);                  // reject NaN, keep in [-1, 1]
     }
@@ -83,7 +83,7 @@ public class ActuatorCommandSubscriber : MonoBehaviour
     {
         bool fresh = Time.time - lastCommandTime <= commandTimeout;                    // has a command arrived recently?
 
-        if (fresh)                                                                     // ROS in control
+        if (fresh)
         {
             robot.externalControl = true;                                          // RobotFishPhysics ignores the keyboard
             robot.thrustCommand = lastThrust;
@@ -104,12 +104,12 @@ public class ActuatorCommandSubscriber : MonoBehaviour
             robot.externalControl = false;                                         // the keyboard takes over again
             Debug.Log("ActuatorCommandSubscriber: no command for " + commandTimeout + " s, back to keyboard control", this);
         }
-        rosInControl = fresh;                                                          // debug / state for the next step
+        rosInControl = fresh;
     }
 
     // Called by the editor when the component is added: fills the target automatically
     void Reset()
     {
-        robot = GetComponentInParent<RobotFishPhysics>();                          // fill the field when added in the editor
+        robot = GetComponentInParent<RobotFishPhysics>();
     }
 }

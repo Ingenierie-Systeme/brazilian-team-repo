@@ -1,7 +1,7 @@
-using System;                                         // DateTimeOffset, Math
-using UnityEngine;                                    // Vector3, Quaternion
-using RosMessageTypes.Std;                            // HeaderMsg
-using RosMessageTypes.BuiltinInterfaces;              // TimeMsg
+using System;
+using UnityEngine;
+using RosMessageTypes.Std;
+using RosMessageTypes.BuiltinInterfaces;
 
 // Helpers shared by the simulated sensors: Unity → ROS frame conversion, Gaussian noise and message headers.
 // Frames: Unity is left-handed (X right, Y up, Z forward); ROS uses REP 103 "FLU"

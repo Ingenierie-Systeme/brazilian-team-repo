@@ -1,7 +1,6 @@
 # Navigation, Guidance and Control (GNC)
 
-High-level intelligence of the robot fish: heading following, depth regulation and, later, waypoint missions.
-This document grows with each step of the GNC work; the current status is shown in section 2.
+High-level intelligence of the robot fish: heading following, depth regulation, missions by time or by waypoints, and a teleop that can take the robot at any moment. Section 2 shows the status of each step.
 
 ## 1. Architecture
 
@@ -170,6 +169,8 @@ The node `heading_control` (package `ros2_ws/src/gnc_control`, Python, `rclpy`) 
 | --- | --- | --- | --- |
 | in | `/guidance/heading` | `std_msgs/Float64` | heading setpoint [deg, clockwise from true north]. Until the first message, the node holds the heading it measures at start |
 | in | `/state/heading` | `std_msgs/Float64` | heading estimated by the navigation [deg, clockwise from true north] (section 7) |
+| in | `/guidance/swim` | `std_msgs/Bool` | from a mission: false = no flapping (section 10) |
+| in | `/teleop/active` | `std_msgs/Bool` | an operator has the robot: the node publishes nothing (section 10.3) |
 | out | `/cmd/tail_frequency`, `/cmd/tail_amplitude`, `/cmd/tail_bias` | `std_msgs/Float64` | actuator commands (section 3), 20 Hz |
 | out | `/gnc/heading`, `/gnc/heading_error`, `/gnc/tail_bias` | `std_msgs/Float64` | measured heading (averaged) [deg], error [deg], fin bias [deg], for monitoring |
 
@@ -295,7 +296,7 @@ ros2 run gnc_control heading_control --ros-args --params-file src/gnc_control/co
 The GNC nodes must be the same in the simulation and on the robot. They differ only below the command topics: the simulator computes the flapping inside `RobotFishPhysics`, while the real servo only accepts the angle to reach at each instant. The node `tail_oscillator` fills this gap on the robot.
 
 ```text
-                 heading_control, depth_control (planned)
+                    heading_control, depth_control
                                 │
       /cmd/tail_frequency, /cmd/tail_amplitude, /cmd/tail_bias, /cmd/pitch
                  │                                      │
@@ -454,12 +455,12 @@ Parameters: `ros2_ws/src/gnc_control/config/navigation.yaml`. The sensor topics 
 - **Orientation:** the AHRS of the `imufusion` library, as in `node_fusion.py` of the course, with its gain of 0.5. It uses the NWU convention here instead of NED, because the simulation and the heading code already use NWU.
 - **Calibration and axes:** parameters of `fusion`, neutral in the simulation (section 7.5). The values in `node_fusion.py` belong to another board, so they are not used.
 - **No estimate, no output:** nothing is published during the first seconds (about 3 s), nor if the magnetometer stops for 0.5 s or the IMU stops. The controllers then stop publishing, and the watchdog stops the flapping.
-- **Depth and vertical speed:** alpha-beta filter on `/depth` (alpha 0.2, beta 0.02), because the difference of two noisy readings would amplify the noise. The depth control (step 4) will need the vertical speed.
+- **Depth and vertical speed:** alpha-beta filter on `/depth` (alpha 0.2, beta 0.02), because the difference of two noisy readings would amplify the noise. The depth control (section 9) uses the vertical speed.
 - **Declination:** applied by `navigation` (−1° in Brest). `/state/attitude` stays relative to magnetic north.
 
 ### 7.3 Time step
 
-Messages can arrive in bursts. In the simulation, the arrival interval of `/imu/data` is typically 5 ms, with peaks beyond 78 ms, for an average of 20 ms. Each message still covers one sensor period, so the filter uses the sensor period as its time step (`sample_rate_hz`), not the arrival interval. The same recorded data gave:
+Messages can arrive in bursts. In the simulation, the arrival interval of `/imu/data` is typically 5 ms, with peaks beyond 78 ms, for an average of 20 ms. Each message still covers one sensor period, so the filter uses the sensor period as its time step (`sample_rate_hz`), not the arrival interval. This parameter must therefore be the real rate of the IMU; `fusion` warns if the measured rate differs by more than 10 %. The same recorded data gave:
 
 | Time step of `fusion` | Heading error, rms | Heading error, maximum |
 | --- | --- | --- |
@@ -562,7 +563,7 @@ To close the loop with the heading controller, continue with terminals 3 to 5 of
 
 ## 8. Step 3b: position by dead reckoning
 
-The node `navigation` also estimates where the robot is and publishes it on `/state/odom` (`nav_msgs/Odometry`). Guidance by waypoints will use it.
+The node `navigation` also estimates where the robot is and publishes it on `/state/odom` (`nav_msgs/Odometry`). The missions by waypoints use it (section 10).
 
 ### 8.1 Design
 
@@ -663,10 +664,11 @@ The node `depth_control` makes the robot follow a depth setpoint while it swims,
 | in | `/state/depth`, `/state/depth_rate`, `/state/pitch` | `std_msgs/Float64` | from the navigation |
 | in | `/state/attitude` | `sensor_msgs/Imu` | pitch rate, from the calibrated gyroscope |
 | in | `/state/odom` | `nav_msgs/Odometry` | estimated speed, to know if the robot swims |
+| in | `/teleop/active` | `std_msgs/Bool` | an operator has the robot: the node publishes nothing (section 10.3) |
 | out | `/cmd/pitch` | `std_msgs/Float64` | moving mass, −1 … 1, + = forward, nose down, 20 Hz |
 | out | `/gnc/depth_error`, `/gnc/pitch_setpoint` | `std_msgs/Float64` | for monitoring |
 
-If the state stops for 0.5 s, the node stops publishing, and the watchdog centers the moving mass. Parameters: `ros2_ws/src/gnc_control/config/depth_control.yaml`.
+If the depth or the pitch stops for 0.5 s, the node stops publishing, and the watchdog centers the moving mass. Without a recent estimated speed, the robot is considered not to swim. Parameters: `ros2_ws/src/gnc_control/config/depth_control.yaml`.
 
 ### 9.2 Design
 

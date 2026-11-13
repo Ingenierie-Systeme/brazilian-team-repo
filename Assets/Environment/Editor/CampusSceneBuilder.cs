@@ -1,9 +1,9 @@
-using System.Collections.Generic;                     // Dictionary, List
-using UnityEditor;                                    // editor API
-using UnityEditor.SceneManagement;                    // scenes
-using UnityEngine;                                    // core API
-using UnityEngine.Rendering;                          // Volume, CullMode
-using UnityEngine.Rendering.Universal;                // URP post-processing and camera data
+using System.Collections.Generic;
+using UnityEditor;
+using UnityEditor.SceneManagement;
+using UnityEngine;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 
 // Builds Assets/Environment/Scenes/AirSeaTestBasin_Campus.unity: the Air-Sea Test Basin building of ENSTA (Brest
 // campus) around the existing basin, with its surroundings (parking lot, road, trees, cars, fence), a sky, the
@@ -439,7 +439,7 @@ public static class CampusSceneBuilder
     static void SetupLighting()
     {
         Light sun = Object.FindAnyObjectByType<Light>();
-        foreach (var l in Object.FindObjectsByType<Light>(FindObjectsSortMode.None)) if (l.type == LightType.Directional) sun = l;
+        foreach (var l in Object.FindObjectsByType<Light>()) if (l.type == LightType.Directional) sun = l;
         sun.name = "Sun";
         sun.transform.rotation = Quaternion.Euler(38f, -40f, 0f);
         sun.intensity = 1.5f;

@@ -58,7 +58,7 @@ Pedro ALVES DE ARAUJO SILVA, Daniel FARLEI SILVA SOUZA, Matheus BENIGNO DA SILVA
 | Teleop that takes the robot at any moment | Done and tested in simulation |
 | Robot drivers (ROS 2) | Written, tested only on a fake board |
 | Electrical schematic and cost study | Done |
-| Real robot | Assembled and ready; **no test in the water yet** |
+| Real robot | Assembled; first tests in a small basin: it floats, swims and turns at the surface, driven by hand. The GNC of this repository has not run on it yet |
 
 ## How the robot works
 
@@ -83,6 +83,18 @@ Built on the base design given in the course (tube, dome, rails and mounts), wit
 - **Depth:** a servo inside the tube slides the metal weights along the tube, which tilts the robot.
 - **Propulsion and steering:** a clamp on the rear cap and a V-shaped support hold the waterproof tail servo outside the tube. An arm links this servo to the tail fin.
 - **Stability:** the fixed dorsal fin resists sideways motion, and the center of mass below the center of buoyancy returns the robot to level.
+
+### First tests in the water
+
+On 5 November 2026, the robot was tested in a small basin, driven by hand with the radio controller. It floats at the surface, and it swims and turns there with its tail. These tests did not use the GNC of this repository, and nothing was measured yet.
+
+![The real robot swimming and turning at the surface of a small basin](Docs/media/robot_fish_basin_tests_2x.gif)
+
+*First tests of the real robot in a small basin (2× speed).*
+
+<img src="Docs/images/robot/basin_surface.jpg" alt="The real robot floating at the surface of the basin" width="560">
+
+*The robot floating at the surface, tail fin at the left.*
 
 ### Photos
 
@@ -111,7 +123,7 @@ Built on the base design given in the course (tube, dome, rails and mounts), wit
 
 <img src="Docs/images/robot/radio_controller.jpg" alt="FrSky Taranis Q X7 radio controller" width="420">
 
-*FrSky Taranis Q X7 radio controller, for manual control of the robot. Its integration is still being tested: the software in this repository uses a keyboard teleop for now.*
+*FrSky Taranis Q X7 radio controller, for manual control of the robot. It drove the robot in the first tests in the basin; the software in this repository uses a keyboard teleop for now.*
 
 | Component | Role |
 | --- | --- |
@@ -238,7 +250,7 @@ The idea is to develop and test the software in the simulator, then run **the sa
 
 ## Results so far
 
-All from the simulation, closed loop through ROS 2. Nothing has been measured on the real robot yet.
+All from the simulation, closed loop through ROS 2. Nothing has been measured on the real robot yet (see [First tests in the water](#first-tests-in-the-water)).
 
 | Test (1.5 Hz, amplitude 30°) | Result |
 | --- | --- |
@@ -253,9 +265,19 @@ All from the simulation, closed loop through ROS 2. Nothing has been measured on
 
 ## Try it
 
-You need Ubuntu 24.04, [ROS 2 Jazzy](https://docs.ros.org/en/jazzy/Installation.html) and Unity 6000.6.5f1.
+You need Ubuntu 24.04. [ROS 2 Jazzy](https://docs.ros.org/en/jazzy/Installation.html) is needed for the navigation, guidance and control, and Unity 6000.6.5f1 only to open or change the project.
 
-**Just the simulator (no ROS 2 needed):** open the project with Unity Hub (*Add project from disk*), open `Assets/TestBasin/Scenes/Basin_Grid.unity`, press Play and click the Game view.
+**Just the simulator, without Unity (Linux):** download `RobotFishSimulator-linux.zip` from the [latest release](https://github.com/Ingenierie-Systeme/brazilian-team-repo/releases/latest), then:
+
+```bash
+unzip RobotFishSimulator-linux.zip && cd RobotFishSimulator
+chmod +x RobotFishSimulator.x86_64
+./RobotFishSimulator.x86_64
+```
+
+A menu opens the test basin with or without its metric grid, or the campus scene with its camera tour; Esc comes back to the menu. To open a scene directly: `./RobotFishSimulator.x86_64 -scene Basin_Grid` (or `Basin_NoGrid`, `AirSeaTestBasin_Campus`).
+
+**Just the simulator, from the Unity project:** open the project with Unity Hub (*Add project from disk*), open `Assets/TestBasin/Scenes/Basin_Grid.unity`, press Play and click the Game view.
 
 | Key | Action |
 | --- | --- |
@@ -263,6 +285,7 @@ You need Ubuntu 24.04, [ROS 2 Jazzy](https://docs.ros.org/en/jazzy/Installation.
 | A / D | Turn (while swimming) |
 | W / S | Move the mass forward / backward |
 | C | Free camera (right mouse button + WASD) |
+| Esc | Back to the menu (simulator build only) |
 
 **With a complete mission.** Once, install the dependencies and build:
 
@@ -276,7 +299,7 @@ cd <path to>/brazilian-team-repo/ros2_ws
 colcon build --symlink-install --packages-select gnc_control
 ```
 
-Terminal 1, bridge between Unity and ROS 2 (then press Play in Unity):
+Terminal 1, bridge between Unity and ROS 2 (then press Play in Unity, or start the simulator above and choose a basin scene):
 
 ```bash
 source /opt/ros/jazzy/setup.bash
@@ -293,6 +316,8 @@ export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
 cd <path to>/brazilian-team-repo/ros2_ws && source install/setup.bash
 ros2 launch gnc_control simulation.launch.py mission:=waypoints.yaml
 ```
+
+While these nodes run, they drive the robot, and the keys of the simulator window are ignored until the nodes stop.
 
 Terminal 3, to take the robot with the keyboard at any moment (Space swims, A/D turn, W/S move the mass, X stops):
 
@@ -388,9 +413,10 @@ Assets/
 ├── AUV/          robot fish: physics, sensors, ROS 2 commands, CAD models, prefabs
 ├── TestBasin/    test basin: scenes, grid shader, ground-truth logger
 ├── Environment/  campus scene: building, surroundings, camera tour
+├── Menu/         start menu of the simulator build
 └── Settings/     render pipeline settings
 ros2_ws/src/
-├── gnc_control/  navigation and control nodes
+├── gnc_control/  navigation, guidance and control nodes
 └── auv_hardware/ drivers and launch file of the real robot
 Docs/             documentation, images and videos
 Tools/
@@ -402,7 +428,7 @@ Tools/
 
 | Document | Content |
 | --- | --- |
-| [GNC.md](Docs/GNC.md) | Commands, heading control, navigation: design, tests and how to run them |
+| [GNC.md](Docs/GNC.md) | Commands, navigation, heading and depth control, missions and teleop: design, tests and how to run them |
 | [Robot_Setup.md](Docs/Robot_Setup.md) | Installation, calibration and first tests on the real robot |
 | [RobotFish_Model.md](Docs/RobotFish_Model.md) | Physical model of the robot and its tests |
 | [RobotFish_Assumptions.md](Docs/RobotFish_Assumptions.md) | Every estimated value, and what to measure on the real robot |
@@ -416,11 +442,11 @@ Tools/
 **Limitations**
 
 - The simulator is not calibrated yet: drag, water reaction on the tail and masses are estimates, listed in [RobotFish_Assumptions.md](Docs/RobotFish_Assumptions.md).
-- The drivers have only run on a fake board.
+- The drivers of this repository have only run on a fake board: the first tests in the basin used separate code.
 - The simulation assumes a moving mass that slides from the tube center to the front. The real travel still has to be measured.
 
 **Next steps**
 
 1. Integrate software and robot: install, calibrate and run the [first tests](Docs/Robot_Setup.md).
-2. Waterproofing, balancing and tests in the basin, with videos.
+2. Balancing (masses, center of mass, travel of the moving mass) and tests under water with the GNC of this repository, with videos.
 3. Compare the simulator with the real robot and adjust it.
