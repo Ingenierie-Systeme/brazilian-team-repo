@@ -317,6 +317,8 @@ cd <path to>/brazilian-team-repo/ros2_ws && source install/setup.bash
 ros2 launch gnc_control simulation.launch.py mission:=waypoints.yaml
 ```
 
+While these nodes run, they drive the robot, and the keys of the simulator window are ignored until the nodes stop.
+
 Terminal 3, to take the robot with the keyboard at any moment (Space swims, A/D turn, W/S move the mass, X stops):
 
 ```bash
