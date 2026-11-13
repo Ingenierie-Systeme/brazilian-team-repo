@@ -28,10 +28,18 @@ def test_nan_is_the_center():
     assert command_to_duty(float('nan')) == pytest.approx(CENTER)
 
 
-def test_invert_and_limit():
+def test_invert_and_limits():
     assert command_to_duty(1.0, invert=True) == pytest.approx(LOW)
-    assert command_to_duty(1.0, limit=0.5) == pytest.approx(0.0875)
-    assert command_to_duty(-1.0, limit=0.5) == pytest.approx(0.0625)
+    assert command_to_duty(1.0, high=0.3) == pytest.approx(0.0825)                  # 1650 µs
+    assert command_to_duty(-1.0, high=0.3) == pytest.approx(LOW)                    # the other side is free
+    assert command_to_duty(0.2, high=0.3) == pytest.approx(0.08)                    # within the limits: unchanged
+
+
+def test_limits_apply_to_the_servo_after_invert():
+    # The stop is on the servo side: with invert, a negative command reaches it
+    assert command_to_duty(-1.0, invert=True, high=0.3) == pytest.approx(0.0825)
+    assert command_to_duty(1.0, invert=True, high=0.3) == pytest.approx(LOW)
+    assert command_to_duty(-0.5, invert=True, low=-0.4) == pytest.approx(0.0875)
 
 
 def test_watchdog_centers_once():

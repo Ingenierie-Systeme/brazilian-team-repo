@@ -10,25 +10,27 @@ CENTER_US = 1500.0
 RANGE_US = 500.0                                        # from the center to each end of the range
 
 
-def command_to_duty(command, invert=False, limit=1.0):
-    """Command in [-1, 1] → duty cycle of the PWM. Out-of-range values are limited and NaN is read as 0.
+def command_to_duty(command, invert=False, low=-1.0, high=1.0):
+    """Command in [-1, 1] → duty cycle of the PWM. NaN is read as 0.
 
     invert: True if a positive command must move the servo the other way.
-    limit: largest command allowed, in (0, 1], to keep the mechanism away from its stops.
+    low, high: limits of the servo position, applied after `invert`, to keep the mechanism away from its stops. They
+    are in servo units (−1 = 1000 µs, 1 = 2000 µs), so they stay right whatever the direction of the mechanism.
     """
-    value = 0.0 if math.isnan(command) else max(-limit, min(limit, command))
-    pulse_us = CENTER_US + (-value if invert else value) * RANGE_US
-    return pulse_us * 1e-6 * PWM_FREQUENCY_HZ
+    value = 0.0 if math.isnan(command) else max(-1.0, min(1.0, command))
+    servo = max(low, min(high, -value if invert else value))
+    return (CENTER_US + servo * RANGE_US) * 1e-6 * PWM_FREQUENCY_HZ
 
 
 class ServoChannel:
     """One servo: applies the commands and returns to the center when they stop arriving."""
 
-    def __init__(self, write_duty, command_timeout_s, invert=False, limit=1.0):
+    def __init__(self, write_duty, command_timeout_s, invert=False, low=-1.0, high=1.0):
         self.write_duty = write_duty                    # function that sends a duty cycle to the board
         self.command_timeout_s = command_timeout_s      # watchdog [s]
         self.invert = invert
-        self.limit = limit
+        self.low = low                                  # servo limits, see command_to_duty
+        self.high = high
         self.last_command_time = None                   # time of the last command [s], None = at the center
 
     def center(self):
@@ -37,7 +39,7 @@ class ServoChannel:
 
     def command(self, value, now):
         """Applies a command received at the time `now` [s]."""
-        self.write_duty(command_to_duty(value, self.invert, self.limit))
+        self.write_duty(command_to_duty(value, self.invert, self.low, self.high))
         self.last_command_time = now
 
     def check_watchdog(self, now):

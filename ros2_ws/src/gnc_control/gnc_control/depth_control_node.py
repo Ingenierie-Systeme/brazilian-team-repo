@@ -12,8 +12,9 @@ Publications:
   /gnc/depth_error    std_msgs/Float64            setpoint − depth [m]
   /gnc/pitch_setpoint std_msgs/Float64            [deg], + = nose down
 
-Safety: the setpoint is limited to [min_depth_m, max_depth_m]. If the state stops for `sensor_timeout_s`, the node
-stops publishing, and the watchdog of the simulator or of the driver centers the moving mass.
+Safety: the setpoint is limited to [min_depth_m, max_depth_m]. If the depth or the pitch stops for `sensor_timeout_s`,
+the node stops publishing, and the watchdog of the simulator or of the driver centers the moving mass. Without a recent
+estimated speed, the robot is considered not to swim.
 """
 import math
 
@@ -51,7 +52,7 @@ class DepthControlNode(Node):
         self.setpoint = None                                             # [m]
         self.depth = self.depth_rate = self.pitch = None
         self.pitch_rate = self.speed = 0.0                               # [deg/s], [m/s]
-        self.last_state_time = None                                      # [s]
+        self.depth_time = self.pitch_time = self.odom_time = None        # time of the latest messages [s]
         self.teleop_time = None                                          # [s]
 
         # ---- ROS interfaces
@@ -73,16 +74,21 @@ class DepthControlNode(Node):
 
     def on_depth(self, msg):
         self.depth = msg.data
-        self.last_state_time = self.now()
+        self.depth_time = self.now()
 
     def on_pitch(self, msg):
         self.pitch = msg.data
+        self.pitch_time = self.now()
 
     def on_attitude(self, msg):
         self.pitch_rate = math.degrees(msg.angular_velocity.y)           # FLU: + about y (left) = nose down
 
     def on_odom(self, msg):
         self.speed = msg.twist.twist.linear.x
+        self.odom_time = self.now()
+
+    def is_recent(self, t, now):
+        return t is not None and now - t <= self.sensor_timeout
 
     def on_setpoint(self, msg):
         self.setpoint = max(self.min_depth, min(self.max_depth, msg.data))
@@ -93,16 +99,17 @@ class DepthControlNode(Node):
 
     def step(self):
         """Control loop: setpoint and state → moving-mass command."""
-        if self.teleop_time is not None and self.now() - self.teleop_time <= self.teleop_timeout:
+        now = self.now()
+        if self.teleop_time is not None and now - self.teleop_time <= self.teleop_timeout:
             return                                                       # the operator has the robot
-        if (self.depth is None or self.depth_rate is None or self.pitch is None
-                or self.now() - self.last_state_time > self.sensor_timeout):
+        if self.depth_rate is None or not (self.is_recent(self.depth_time, now) and self.is_recent(self.pitch_time, now)):
             return                                                       # no state: publish nothing (safe)
         if self.setpoint is None:
             self.setpoint = max(self.min_depth, min(self.max_depth, self.depth))
             self.get_logger().info(f'holding the initial depth {self.setpoint:.2f} m')
+        swimming = self.is_recent(self.odom_time, now) and self.speed >= self.min_speed
         command = self.controller.update(self.setpoint, self.depth, self.depth_rate, self.pitch, self.pitch_rate,
-                                         self.speed >= self.min_speed, 1.0 / self.rate)
+                                         swimming, 1.0 / self.rate)
         self.pub_command.publish(Float64(data=float(command)))
         self.pub_error.publish(Float64(data=float(self.controller.error)))
         self.pub_pitch.publish(Float64(data=float(self.controller.pitch_wanted)))

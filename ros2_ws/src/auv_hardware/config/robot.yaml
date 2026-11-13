@@ -8,7 +8,8 @@ navigator:
     tail_channel: 0                # TO CHECK: PWM output of the tail servo
     mass_channel: 1                # TO CHECK: PWM output of the moving-mass servo
     mass_invert: false             # TO CHECK: true if a positive command moves the mass backward
-    mass_limit: 1.0                # TO CHECK: reduce it if the mass reaches a stop before ±1
+    mass_servo_min: -1.0           # TO CHECK: moving-mass servo limits, in servo units (−1 = 1000 µs, 1 = 2000 µs).
+    mass_servo_max: 0.3            # The first tests on the robot limited the servo to −1 … 0.3 (1000 to 1650 µs)
 
 barometer:
   ros__parameters:

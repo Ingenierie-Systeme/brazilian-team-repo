@@ -1,6 +1,6 @@
 """Depth and vertical speed from the pressure sensor (pure Python, no ROS dependency, so it can be unit tested).
 
-The depth control will need the vertical speed, which no sensor measures. The difference between two noisy depth
+The depth control needs the vertical speed, which no sensor measures. The difference between two noisy depth
 readings would amplify the noise, so an alpha-beta filter is used, which predicts and then corrects:
 
     predicted = depth + rate·dt

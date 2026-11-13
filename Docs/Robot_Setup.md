@@ -66,7 +66,7 @@ ros2 topic pub -r 10 /cmd/pitch std_msgs/msg/Float64 "{data: 0.2}"     # moving-
 | 1 | The tail servo moves with `/servo/tail`, the mass with `/cmd/pitch` | Swap the channels | `tail_channel`, `mass_channel` |
 | 2 | Each servo returns to the center 0.5 s after Ctrl+C | Stop and check the driver | – |
 | 3 | A positive `/cmd/pitch` moves the mass forward | Reverse it | `mass_invert` |
-| 4 | The mass does not hit anything at ±1 (increase slowly) | Limit it, and note the real travel | `mass_limit` |
+| 4 | The mass does not hit anything between the two limits (increase slowly). The first tests on the robot limited the servo to −1 … 0.3 | Change the limits, and note the real travel | `mass_servo_min`, `mass_servo_max` |
 | 5 | A positive `/servo/tail` moves the fin to the right, seen from above with the nose forward | Reverse it | `invert` of `tail_oscillator` |
 | 6 | Measure the fin angle at `/servo/tail` = 1 (increase slowly) | – | `servo_range_deg` |
 
@@ -95,6 +95,8 @@ ros2 launch auv_hardware robot.launch.py
 
 ```bash
 source /opt/ros/jazzy/setup.bash
+ros2 topic hz /imu/data
+ros2 topic hz /imu/mag
 ros2 topic echo /state/heading
 ros2 topic echo /state/roll
 ros2 topic echo /state/pitch
@@ -103,6 +105,7 @@ ros2 topic echo /state/depth
 
 | # | Check | If not | Parameter |
 | --- | --- | --- | --- |
+| 0 | `/imu/data` arrives at the rate of `sample_rate_hz` (100 Hz), and `/imu/mag` at about 20 Hz. The node `fusion` also warns if the IMU rate differs by more than 10 % | Set `sample_rate_hz` of `fusion` and `imu_rate_hz` of `navigator` to the measured rate: a wrong value makes the turns look smaller or larger | `sample_rate_hz`, `imu_rate_hz` |
 | 1 | Nose down: pitch positive. Right side down: roll positive | Change the axes | `axes` of `fusion` |
 | 2 | Turn the robot to the right: the heading grows, and it matches a compass within a few degrees | Change the axes, redo the magnetometer calibration | `axes`, `mag_hard`, `mag_soft` |
 | 3 | Turn by 90° quickly: the heading follows without a slow correction afterward | Check the gyroscope scale | `gyro_scale` |
@@ -135,6 +138,15 @@ ros2 topic echo /gnc/heading_error
 ```
 
 Check that the fin bias goes to the side of the error (setpoint to the right, fin to the right). Ctrl+C in terminal 1 centers the servos and disables the outputs.
+
+**Check the magnetometer while the tail flaps.** In the first tests on the robot, the magnetometer readings failed while the servos were moving, and they were turned off for the tests in the basin. The heading needs them: if `/imu/mag` stops for 0.5 s, the estimate stops and the tail stops. While the fin flaps, in another terminal:
+
+```bash
+source /opt/ros/jazzy/setup.bash
+ros2 topic hz /imu/mag
+```
+
+It should stay at about 20 Hz. Failed readings are logged by `navigator`.
 
 **In the water:** the robot depends on a computer connection to start and stop, and Wi-Fi does not reach under water, so stay at the surface for the first tests, with a way to recover the robot.
 
