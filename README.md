@@ -265,9 +265,19 @@ All from the simulation, closed loop through ROS 2. Nothing has been measured on
 
 ## Try it
 
-You need Ubuntu 24.04, [ROS 2 Jazzy](https://docs.ros.org/en/jazzy/Installation.html) and Unity 6000.6.5f1.
+You need Ubuntu 24.04. [ROS 2 Jazzy](https://docs.ros.org/en/jazzy/Installation.html) is needed for the navigation, guidance and control, and Unity 6000.6.5f1 only to open or change the project.
 
-**Just the simulator (no ROS 2 needed):** open the project with Unity Hub (*Add project from disk*), open `Assets/TestBasin/Scenes/Basin_Grid.unity`, press Play and click the Game view.
+**Just the simulator, without Unity (Linux):** download `RobotFishSimulator-linux.zip` from the [latest release](https://github.com/Ingenierie-Systeme/brazilian-team-repo/releases/latest), then:
+
+```bash
+unzip RobotFishSimulator-linux.zip && cd RobotFishSimulator
+chmod +x RobotFishSimulator.x86_64
+./RobotFishSimulator.x86_64
+```
+
+A menu opens the test basin with or without its metric grid, or the campus scene with its camera tour; Esc comes back to the menu. To open a scene directly: `./RobotFishSimulator.x86_64 -scene Basin_Grid` (or `Basin_NoGrid`, `AirSeaTestBasin_Campus`).
+
+**Just the simulator, from the Unity project:** open the project with Unity Hub (*Add project from disk*), open `Assets/TestBasin/Scenes/Basin_Grid.unity`, press Play and click the Game view.
 
 | Key | Action |
 | --- | --- |
@@ -275,6 +285,7 @@ You need Ubuntu 24.04, [ROS 2 Jazzy](https://docs.ros.org/en/jazzy/Installation.
 | A / D | Turn (while swimming) |
 | W / S | Move the mass forward / backward |
 | C | Free camera (right mouse button + WASD) |
+| Esc | Back to the menu (simulator build only) |
 
 **With a complete mission.** Once, install the dependencies and build:
 
@@ -288,7 +299,7 @@ cd <path to>/brazilian-team-repo/ros2_ws
 colcon build --symlink-install --packages-select gnc_control
 ```
 
-Terminal 1, bridge between Unity and ROS 2 (then press Play in Unity):
+Terminal 1, bridge between Unity and ROS 2 (then press Play in Unity, or start the simulator above and choose a basin scene):
 
 ```bash
 source /opt/ros/jazzy/setup.bash
@@ -400,6 +411,7 @@ Assets/
 ├── AUV/          robot fish: physics, sensors, ROS 2 commands, CAD models, prefabs
 ├── TestBasin/    test basin: scenes, grid shader, ground-truth logger
 ├── Environment/  campus scene: building, surroundings, camera tour
+├── Menu/         start menu of the simulator build
 └── Settings/     render pipeline settings
 ros2_ws/src/
 ├── gnc_control/  navigation, guidance and control nodes

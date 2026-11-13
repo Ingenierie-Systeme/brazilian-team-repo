@@ -134,7 +134,6 @@ The robot is the **`RobotFishDetailed` prefab** (`Assets/AUV/Prefabs/RobotFishDe
 - **Sensors** (RGB camera, INS with magnetometer, pressure, GNSS) are mounted on the prefab and publish to ROS 2; see [AUV_Sensors.md](AUV_Sensors.md).
 - **`GroundTruthLogger`** records the robot pose and travelled distance.
 - **`SimulationCamera`** follows the robot from behind (`targetLocalForward = (−1, 0, 0)`, the robot moves along its local −X axis). **C** switches to a free camera that only moves while the right mouse button is held, so the keyboard keeps driving the robot.
-- The original AUV model (`SubmarinePhysics.cs`, scene `Assets/AUV/Scenes/Submarine_model.unity`) is unchanged and no longer used in the basin.
 
 Robot controls (from `RobotFishPhysics`):
 
@@ -159,8 +158,8 @@ Both scenes were checked by measuring the generated pieces and by running **15 s
 | Basin material | Basin_Grid | Basin_Plain |
 | BasinGrid shader | compiles without errors | — |
 
-Play-mode test with the first AUV model and its sensors (Basin_Grid, ROS-TCP-Endpoint running; the test drives the AUV directly); the robot fish model is verified in [RobotFish_Model.md](RobotFish_Model.md#5-verification):
-- `SubmarinePhysics.waterLevel` = 5.500, synced from the basin;
+Play-mode test with the first AUV model of the project (propeller and rudder, since replaced by the robot fish and removed) and its sensors (Basin_Grid, ROS-TCP-Endpoint running; the test drives the AUV directly); the robot fish model is verified in [RobotFish_Model.md](RobotFish_Model.md#5-verification):
+- water level of the AUV = 5.500 m, synced from the basin;
 - 0–5 s at rest: the AUV stays at y = 3.0 m (neutral buoyancy);
 - 5–10 s at cruise speed (0.4 m/s): 1.9 m along +Z; 10–12 s: right turn;
 - 12–25 s with minimum ballast: the AUV rises by itself and floats at the surface (y = 5.41 m);
